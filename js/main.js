@@ -10,7 +10,10 @@ const cv = $('#cv'), cx = cv.getContext('2d');
 let S = null, scale = 2, mode = 'title', last = 0, acc = 0, dlg = null, areaShown = null, overTimer = 0, winTimer = 0;
 const SAVE = 'msc_save';
 const loadSave = () => { try { return JSON.parse(localStorage.getItem(SAVE)); } catch (e) { return null; } };
-const writeSave = () => { try { localStorage.setItem(SAVE, JSON.stringify(G.toSave(S))); } catch (e) { /* storage blocked */ } };
+const writeSave = () => { try { localStorage.setItem(SAVE, JSON.stringify(G.toSave(S))); } catch (e) { /* storage blocked */ } if (cloud) cloud.touch('moonshadow-castle', SAVE); };
+// cloud saves (shared by every game on the site); the game keeps working if they are unavailable
+let cloud = null;
+import('/save.js').then(async (m) => { cloud = m; if (await m.pull('moonshadow-castle', SAVE) && mode === 'title') $('#bCont').disabled = !loadSave(); }).catch(() => {});
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window || /[?&]touch=1/.test(location.search);
 
 // ------------------------------------------------------------------ layout
@@ -350,7 +353,7 @@ function showEnding() {
   $('#ending').classList.remove('hidden');
   $('#ending .stats').innerHTML = `${t('clearTime')}: ${fmtTime(S.playTime)}<br>Lv ${S.p.lv} · ${t('explored')} ${G.explored(S)}%<br>${t('kills')}: ${S.p.kills} · ${t('deaths')}: ${S.deaths}`;
   A.music('ending');
-  try { const d = G.toSave(S); d.cleared = 1; localStorage.setItem(SAVE, JSON.stringify(d)); } catch (e) { /* ignore */ }
+  try { const d = G.toSave(S); d.cleared = 1; localStorage.setItem(SAVE, JSON.stringify(d)); } catch (e) { /* ignore */ } if (cloud) cloud.touch('moonshadow-castle', SAVE);
 }
 
 // ------------------------------------------------------------------ loop
