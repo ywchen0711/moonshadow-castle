@@ -2,7 +2,7 @@
 import { AREAS, ITEMS, SUBS, RELICS, SHOP, ROOM } from './data.js?v=1';
 import * as G from './game.js?v=1';
 import { render, drawIcon, drawMap, VW, VH } from './render.js?v=1';
-import { t, L, STORY, getLang, setLang } from './i18n.js?v=1';
+import { t, L, STORY, getLang, setLang } from './i18n.js?v=2';
 import * as A from './audio.js?v=1';
 
 const $ = (s) => document.querySelector(s);
@@ -79,10 +79,75 @@ document.querySelectorAll('.tt').forEach((b) => b.addEventListener('pointerdown'
 let prevIn = {};
 function readInput() {
   const inp = { ...held };
+  for (const k in held) if (gp.held[k]) inp[k] = 1;
   if (touchDir.x < 0) inp.left = 1; if (touchDir.x > 0) inp.right = 1; if (touchDir.y < 0) inp.up = 1; if (touchDir.y > 0) inp.down = 1;
   inp.pressed = {}; for (const k of ['jump', 'attack', 'sub', 'dash', 'bat', 'up']) inp.pressed[k] = !!inp[k] && !prevIn[k];
   prevIn = inp; return inp;
 }
+
+// ------------------------------------------------------------------ gamepad (standard mapping: Xbox / PlayStation / Switch Pro over USB or Bluetooth)
+// A / Cross jump · X / Square attack · Y / Triangle sub-weapon · B / Circle backdash · LB RB / L1 R1 bat · Start menu · Back / Select map
+const gp = { held: {}, prev: {}, active: false, focus: 0, repT: 0 };
+function gpRead() {
+  const list = navigator.getGamepads ? navigator.getGamepads() : [];
+  let g = null; for (const x of list) if (x && x.connected && x.buttons.length) { g = x; break; }
+  if (!g) return null;
+  const b = (i) => !!(g.buttons[i] && (g.buttons[i].pressed || g.buttons[i].value > 0.5));
+  const ax = g.axes[0] || 0, ay = g.axes[1] || 0;
+  const s = { left: b(14) || ax < -0.45, right: b(15) || ax > 0.45, up: b(12) || ay < -0.55, down: b(13) || ay > 0.55,
+    jump: b(0), dash: b(1), attack: b(2), sub: b(3), bat: b(4) || b(5), menu: b(9), map: b(8) };
+  s.pad = g; return s;
+}
+function rumble(ms, k) { try { const list = navigator.getGamepads ? navigator.getGamepads() : []; for (const g of list) if (g && g.vibrationActuator) g.vibrationActuator.playEffect('dual-rumble', { duration: ms, strongMagnitude: k, weakMagnitude: k }); } catch (e) { /* not supported */ } }
+addEventListener('gamepadconnected', () => { A.unlock(); toast(t('padOn')); });
+addEventListener('gamepaddisconnected', () => { gp.held = {}; toast(t('padOff')); });
+// menus: the d-pad moves a highlight over the visible buttons / list rows, A clicks, B goes back
+function uiRoot() {
+  for (const id of ['#confirm', '#how', '#shop', '#menu', '#over', '#ending', '#title']) { const e = $(id); if (!e.classList.contains('hidden')) return e; }
+  return null;
+}
+function uiItems() { const r = uiRoot(); return r ? [...r.querySelectorAll('button:not([disabled]), .it')].filter((e) => e.offsetParent !== null && !e.closest('#touch')) : []; }
+function uiMark() {
+  document.querySelectorAll('.gpf').forEach((e) => e.classList.remove('gpf'));
+  if (!gp.active) return;
+  const items = uiItems(); if (!items.length) return;
+  gp.focus = Math.max(0, Math.min(items.length - 1, gp.focus));
+  const e = items[gp.focus]; e.classList.add('gpf');
+}
+function uiMove(d) { const items = uiItems(); if (!items.length) return; gp.focus = (gp.focus + d + items.length) % items.length; uiMark(); items[gp.focus].scrollIntoView({ block: 'nearest' }); A.sfx('menu'); }
+function uiBack() {
+  if (!$('#confirm').classList.contains('hidden')) { $('#confirm').classList.add('hidden'); gp.focus = 0; return; }
+  if (!$('#how').classList.contains('hidden')) { $('#how').classList.add('hidden'); gp.focus = 0; return; }
+  if (mode === 'menu' || mode === 'shop') closeOverlays();
+}
+function pollPad(dt) {
+  const s = gpRead();
+  if (!s) { gp.held = {}; return; }
+  const p = gp.prev, edge = (k) => s[k] && !p[k];
+  if (Object.keys(s).some((k) => k !== 'pad' && s[k])) gp.active = true;
+  if (mode === 'play') {
+    gp.held = s;
+    if (edge('menu')) { gp.held = {}; openMenu('status'); }
+    else if (edge('map')) { gp.held = {}; openMenu('map'); }
+  } else {
+    gp.held = {};
+    if (mode === 'dialog') { if (edge('jump') || edge('attack') || edge('dash')) advanceDialog(); }
+    else {
+      const dir = s.up || s.left ? -1 : s.down || s.right ? 1 : 0;
+      const was = p.up || p.left ? -1 : p.down || p.right ? 1 : 0;
+      if (dir && dir !== was) { uiMove(dir); gp.repT = 0.4; }
+      else if (dir) { gp.repT -= dt; if (gp.repT <= 0) { uiMove(dir); gp.repT = 0.11; } }
+      if (edge('jump')) { const e = uiItems()[gp.focus]; if (e) { A.unlock(); e.click(); gp.focus = Math.min(gp.focus, uiItems().length - 1); } }
+      if (edge('dash')) uiBack();
+      if (edge('menu') && mode === 'menu') closeOverlays();
+      if (edge('map') && mode === 'menu') closeOverlays();
+    }
+    uiMark();
+  }
+  gp.prev = s;
+}
+addEventListener('keydown', () => { gp.active = false; uiMark(); }, true);
+addEventListener('pointerdown', () => { gp.active = false; uiMark(); }, true);
 
 // ------------------------------------------------------------------ title
 function showTitle() {
@@ -116,7 +181,7 @@ function handleEvents() {
   const evs = S.ev.splice(0);
   for (const e of evs) {
     switch (e.t) {
-      case 'sfx': A.sfx(e.id); break;
+      case 'sfx': A.sfx(e.id); if (e.id === 'hurt') rumble(140, 0.6); else if (e.id === 'bossdie' || e.id === 'slam') rumble(260, 0.8); break;
       case 'room':
         if (e.area !== areaShown) { areaShown = e.area; const el = $('#areaName'); el.textContent = L(AREAS[e.area]); el.classList.remove('hidden'); el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
         areaMusic = AREAS[e.area].music; if (!S.sealed) A.music(areaMusic);
@@ -243,7 +308,7 @@ function drawMenu() {
     const list = el('div', 'list');
     const snd = el('div', 'it', `<div class="nm">${t('sound')}</div><b>${A.soundOn() ? t('on') : t('off')}</b>`); snd.onclick = () => { A.setSound(!A.soundOn()); drawMenu(); }; list.appendChild(snd);
     const lg = el('div', 'it', `<div class="nm">${t('language')}</div><b>${getLang() === 'zh' ? '中文' : 'English'}</b>`); lg.onclick = () => { setLang(getLang() === 'zh' ? 'en' : 'zh'); applyText(); drawMenu(); }; list.appendChild(lg);
-    const how = el('div', 'it', `<div class="nm">${t('howTo')}<div class="sm">${isTouch ? t('controlsTouch') : t('controlsKb')}<br>${t('controlsTips')}</div></div>`); list.appendChild(how);
+    const how = el('div', 'it', `<div class="nm">${t('howTo')}<div class="sm">${isTouch ? t('controlsTouch') : t('controlsKb')}<br>${t('controlsPad')}<br>${t('controlsTips')}</div></div>`); list.appendChild(how);
     const q = el('div', 'it', `<div class="nm">${t('toTitle')}<div class="sm">${L({ zh: '從最後一次存檔繼續。', en: 'You will continue from your last save.' })}</div></div>`); q.onclick = () => { closeOverlays(true); showTitle(); }; list.appendChild(q);
     body.appendChild(list);
   }
@@ -295,6 +360,7 @@ function frame(now, fallback) {
   if (!fallback) requestAnimationFrame(frame);
   lastFrame = performance.now();
   const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
+  pollPad(dt);
   if (!S) { cx.fillStyle = '#000'; cx.fillRect(0, 0, cv.width, cv.height); return; }
   if (mode === 'play' && !window.__freeze) {
     acc += dt; let n = 0;
@@ -310,4 +376,4 @@ requestAnimationFrame(frame);
 showTitle();
 // a demo room behind the title screen
 S = G.newState(1);
-window.__msc = { get S() { return S; }, G, step(n, inp = {}) { for (let i = 0; i < n; i++) { const x = { ...inp, pressed: { ...(inp.pressed || {}) } }; if (i) x.pressed = {}; G.update(S, 1 / 60, x); handleEvents(); } }, begin, openMenu, openShop, closeOverlays, startNew, get mode() { return mode; } };
+window.__msc = { get S() { return S; }, G, tick(n) { for (let i = 0; i < n; i++) { pollPad(1 / 60); if (mode === 'play') { G.update(S, 1 / 60, readInput()); handleEvents(); } } }, step(n, inp = {}) { for (let i = 0; i < n; i++) { const x = { ...inp, pressed: { ...(inp.pressed || {}) } }; if (i) x.pressed = {}; G.update(S, 1 / 60, x); handleEvents(); } }, begin, openMenu, openShop, closeOverlays, startNew, get mode() { return mode; } };

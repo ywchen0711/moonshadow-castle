@@ -17,6 +17,9 @@ const S = {
   controlsKb: { zh: '鍵盤：←→ 移動　↓ 蹲下　Z / 空白 跳躍　X 攻擊　↑+X 或 C 副武器　A 後跳　S 變身蝙蝠　Enter 選單　M 地圖',
     en: 'Keyboard: ←→ move · ↓ crouch · Z / Space jump · X attack · ↑+X or C sub-weapon · A backdash · S bat form · Enter menu · M map' },
   controlsTouch: { zh: '觸控：左下方向鍵，右下 跳 / 攻 / 副 / 退 / 蝠 按鈕，右上 選單與地圖', en: 'Touch: d-pad bottom left; jump / attack / sub / dash / bat buttons bottom right; menu and map top right' },
+  controlsPad: { zh: '搖桿（Xbox / PS / Switch Pro）：十字鍵或左類比 移動　A / ✕ 跳躍　X / □ 攻擊　Y / △ 副武器　B / ○ 後跳　LB / RB 變身蝙蝠　Start 選單　Back / Select 地圖。選單裡用十字鍵選、A 確定、B 返回。',
+    en: 'Gamepad (Xbox / PS / Switch Pro): d-pad or left stick move · A / ✕ jump · X / □ attack · Y / △ sub-weapon · B / ○ backdash · LB / RB bat form · Start menu · Back / Select map. In menus: d-pad to choose, A to confirm, B to go back.' },
+  padOn: { zh: '🎮 偵測到搖桿', en: '🎮 Gamepad connected' }, padOff: { zh: '🎮 搖桿已中斷', en: '🎮 Gamepad disconnected' },
   controlsTips: { zh: '↓ + 跳：從平台跳下（有影之披風時在地面是滑鏟）。碰到紅色的棺木雕像會存檔並回滿血。打破燭台可以拿到愛心與金幣。',
     en: 'Down + jump: drop through a ledge (with the Shadow Cloak, a slide on solid ground). Touch a red coffin statue to save and heal. Break candles for hearts and gold.' },
   // HUD / menus

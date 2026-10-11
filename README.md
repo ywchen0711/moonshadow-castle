@@ -25,16 +25,18 @@ Every hundred years the moon turns black above Moonshadow Castle, and Count Vorl
 
 ## Controls
 
-| | Keyboard | Touch |
-|---|---|---|
-| Move / crouch | ← → / ↓ | stick |
-| Jump (again in the air: double jump) | Z / Space | 跳 / Jump |
-| Attack | X | 攻 / Atk |
-| Sub-weapon | ↑ + X, or C | 副 / Sub |
-| Backdash | A | 退 / Dash |
-| Bat form | S | 蝠 / Bat |
-| Drop through a ledge / slide | ↓ + jump | |
-| Menu / map | Enter / M | ☰ / 🗺 |
+| | Keyboard | Gamepad (Xbox / PS / Switch Pro) | Touch |
+|---|---|---|---|
+| Move / crouch | ← → / ↓ | d-pad / left stick | stick |
+| Jump (again in the air: double jump) | Z / Space | A / ✕ | 跳 / Jump |
+| Attack | X | X / □ | 攻 / Atk |
+| Sub-weapon | ↑ + X, or C | Y / △ (or ↑ + X) | 副 / Sub |
+| Backdash | A | B / ○ | 退 / Dash |
+| Bat form | S | LB / RB | 蝠 / Bat |
+| Drop through a ledge / slide | ↓ + jump | ↓ + A | |
+| Menu / map | Enter / M | Start / Back | ☰ / 🗺 |
+
+With a gamepad, the menus, shop and title screen use the d-pad to move the highlight, A to confirm and B to go back. Taking damage makes the controller rumble (Chrome / Edge).
 
 ## Development
 
