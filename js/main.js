@@ -362,7 +362,7 @@ setInterval(() => { const n = performance.now(); if (!document.hidden && n - las
 function frame(now, fallback) {
   if (!fallback) requestAnimationFrame(frame);
   lastFrame = performance.now();
-  const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
+  const dt = Math.max(0, Math.min(0.1, (now - last) / 1000 || 0)); last = Math.max(last, now);   // timer and animation-frame clocks can disagree
   pollPad(dt);
   if (!S) { cx.fillStyle = '#000'; cx.fillRect(0, 0, cv.width, cv.height); return; }
   if (mode === 'play' && !window.__freeze) {
