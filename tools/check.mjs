@@ -1,7 +1,7 @@
 // Progression check: stitches every room into one world tile grid and runs a reachability search for each
 // set of relics. Positive checks use cautious jump numbers, negative checks (a gate must hold) generous ones.
 import { CW, CH, ROOMS } from '../js/data.js?v=1';
-import { T, buildRoom } from '../js/world.js?v=1';
+import { T, buildRoom } from '../js/world.js?v=2';
 
 const minX = Math.min(...ROOMS.map((r) => r.x)), minY = Math.min(...ROOMS.map((r) => r.y));
 const maxX = Math.max(...ROOMS.map((r) => r.x + r.w)), maxY = Math.max(...ROOMS.map((r) => r.y + r.h));

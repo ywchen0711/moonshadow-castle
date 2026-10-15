@@ -1,7 +1,7 @@
 // Moonshadow Castle game logic: player physics and abilities, combat, enemies, bosses, drops, levels, rooms.
 // No DOM here: main.js feeds input and reads S; tools/test.mjs drives it headless.
 import { TILE, CW, CH, AREAS, ROOM, ROOMS, RELICS, ENEMIES, BOSSES, ITEMS, DROP_TABLE, SUBS, SUB_SPOTS, LEVEL_EXP } from './data.js?v=1';
-import { T, buildRoom, roomAt } from './world.js?v=1';
+import { T, buildRoom, roomAt } from './world.js?v=2';
 
 export const PH = { G: 900, JUMP: 335, DJUMP: 300, WALK: 112, FALL: 400, SLIDE: 230, DASH: 210, BAT: 125, W: 10, H: 28, HC: 14 };
 const roomCache = {};
@@ -22,7 +22,7 @@ export function newPlayer() {
 export function newState(seed = Date.now()) {
   const S = {
     p: newPlayer(), roomId: null, R: null, ents: [], shots: [], eshots: [], drops: [], fx: [], texts: [], props: [],
-    flags: { taken: {}, boss: {}, seen: {}, visited: {} }, time: 0, sealed: false, boss: null, ev: [], cam: { x: 0, y: 0 },
+    flags: { taken: {}, boss: {}, seen: {}, visited: {}, broken: {} }, time: 0, sealed: false, boss: null, ev: [], cam: { x: 0, y: 0 },
     shake: 0, rnd: mkRng(seed), saveRoom: 'r1', deaths: 0, playTime: 0, over: false, won: false, fade: 0,
   };
   loadRoom(S, 'r1', null);
@@ -123,6 +123,7 @@ const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h 
 export function worldCell(S) { const p = S.p, r = S.R.room; return { cx: r.x + Math.floor((p.x + p.w / 2) / (CW * TILE)), cy: r.y + Math.floor((p.y + p.h / 2) / (CH * TILE)) }; }
 export function loadRoom(S, id, entry) {
   const R = getRoom(id), r = R.room, area = AREAS[r.area];
+  for (const [x, y] of R.breakCells || []) { const want = S.flags.broken && S.flags.broken[id] ? T.AIR : T.BREAK; if (R.tiles[y][x] !== want) { R.tiles[y][x] = want; R.dirty = true; } }
   S.roomId = id; S.R = R; S.ents = []; S.shots = []; S.eshots = []; S.drops = []; S.props = []; S.texts = []; S.sealed = false; S.boss = null;
   S.fade = 0.25;
   const rnd = S.rnd, lv = area.lv;
@@ -131,7 +132,10 @@ export function loadRoom(S, id, entry) {
   // candles: two per cell
   for (let row = 0; row < r.h; row++) for (let cx = 0; cx < r.w; cx++) for (const f of [0.18, 0.82]) {
     const s = spot(cx, row, f + (rnd() - 0.5) * 0.08);
-    S.props.push({ kind: 'candle', x: s.x, y: s.y - 52, w: 8, h: 14 });
+    const cd = { kind: 'candle', x: s.x, y: s.y - 52, w: 8, h: 14 };
+    const inWall = (q) => { for (let ty = Math.floor(q.y / TILE); ty <= Math.floor((q.y + q.h) / TILE); ty++) for (let tx = Math.floor(q.x / TILE); tx <= Math.floor((q.x + q.w) / TILE); tx++) { const t = R.tiles[ty]?.[tx]; if (t === T.SOLID || t === T.BREAK || t === undefined) return true; } return false; };
+    for (let k = 1; k <= 6 && inWall(cd); k++) cd.x = s.x + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * TILE;   // step out of walls (e.g. a crawlspace)
+    if (!inWall(cd)) S.props.push(cd);
   }
   if (SUB_SPOTS[id]) { const c = S.props.filter((q) => q.kind === 'candle')[1]; if (c) { c.sub = SUB_SPOTS[id]; c.big = true; } }
   if (r.special === 'save') { const s = spot(0, 0, 0.5); S.props.push({ kind: 'save', x: s.x, y: s.y - 40, w: 20, h: 40 }); }
@@ -445,7 +449,7 @@ function useSub(S) {
 function breakWall(S, tx, ty) {
   const R = S.R;
   for (let y = 0; y < R.H; y++) if (R.tiles[y][tx] === T.BREAK) { R.tiles[y][tx] = T.AIR; burst(S, tx * TILE + 8, y * TILE + 8, '#9a8a7a', 6, 80); }
-  R.dirty = true; sfx(S, 'crumble'); S.shake = 0.25;
+  R.dirty = true; sfx(S, 'crumble'); S.shake = 0.25; (S.flags.broken ||= {})[S.roomId] = 1;
   if (!S.flags.seen.secret) { S.flags.seen.secret = 1; S.ev.push({ t: 'toast', key: 'secretFound' }); }
 }
 function breakCandle(S, c) {

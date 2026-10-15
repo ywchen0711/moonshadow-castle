@@ -33,12 +33,20 @@ export function buildRoom(id) {
   // 1) carve every cell row: air above each 2-tile floor slab (the top row of the room is the ceiling)
   for (let row = 0; row < r.h; row++) for (let y = row === 0 ? (r.outside ? 0 : 1) : row * CH; y < floorY(row); y++) for (let x = 1; x < W - 1; x++) t[y][x] = T.AIR;
   const shaft = new Set();             // cells with a way up through their ceiling: no decorative platforms there
-  // stepping platforms (one-way) from the floor yFloor up towards an opening whose surface is at yTarget, 3 tiles apart
+  // stepping platforms (one-way) from the floor yFloor up to an opening whose landing surface is at yTarget.
+  // Built from the top down: the top step is 3 tiles below the landing, inside the shaft columns only (so your head
+  // fits under the slab), and never on the room's top row (standing there would put you in the room above).
+  // The double-jump gate leaves a 5-tile gap above the floor.
   const stairs = (cx, yTarget, yFloor, gate) => {
     if (noPlat || gate === 'bat') return;
     const steps = [];
-    for (let y = yFloor - (gate === 'dj' ? 6 : 3); y >= yTarget + 2; y -= 3) steps.push(y);
-    steps.forEach((y, k) => { const x0 = cx * CW + (k % 2 ? 12 : 9); for (let x = x0; x < x0 + 4; x++) if (y > 0 || HOLE.includes(x - cx * CW)) set(x, y, T.PLAT); });
+    for (let y = yTarget + 3; y <= yFloor - 2; y += 3) steps.push(y);
+    if (gate === 'dj') { while (steps.length && steps[steps.length - 1] > yFloor - 5) steps.pop(); if (steps[steps.length - 1] < yFloor - 6) steps.push(yFloor - 5); }
+    else if (yFloor - (steps.length ? steps[steps.length - 1] : yTarget) > 3) steps.push(yFloor - 2);   // never more than 3 tiles from the floor to the first step
+    steps.forEach((y, k) => {
+      const x0 = cx * CW + (k === 0 ? 11 : k % 2 ? 9 : 12), len = k === 0 ? 3 : 4;
+      for (let x = x0; x < x0 + len; x++) set(x, y, T.PLAT);
+    });
   };
   // 2) connect the cell rows inside the room: a hole in the slab (one-way platform) and steps below it
   for (let row = 0; row < r.h - 1; row++) {
@@ -53,7 +61,7 @@ export function buildRoom(id) {
     if (e.side === 'L' || e.side === 'R') {
       const x = e.side === 'L' ? 0 : W - 1, fy = floorY(e.i);
       const h = e.gate === 'slide' ? 1 : 4;
-      for (let y = fy - h; y < fy; y++) set(x, y, e.gate === 'break' ? T.BREAK : T.AIR);
+      for (let y = fy - h; y < fy; y++) set(x, y, e.gate === 'break' && !r.secret ? T.BREAK : T.AIR);
       if (e.gate === 'slide') {       // a low crawlspace leading to the opening
         const dir = e.side === 'L' ? 1 : -1;
         for (let k = 1; k <= 5; k++) for (let y = fy - 4; y < fy - 1; y++) set(x + dir * k, y, T.SOLID);
@@ -61,11 +69,11 @@ export function buildRoom(id) {
       if (r.boss) for (let y = fy - h; y < fy; y++) set(e.side === 'L' ? 1 : W - 2, y, T.SEAL);
     } else if (e.side === 'U') {
       for (const h of HOLE) set(e.i * CW + h, 0, T.AIR);
-      stairs(e.i, -2, floorY(0), e.gate);
+      stairs(e.i, -1, floorY(0), e.gate);
       shaft.add(e.i + ',0');
     } else {
       const fy = floorY(r.h - 1);
-      for (const h of HOLE) { set(e.i * CW + h, fy, T.PLAT); set(e.i * CW + h, fy + 1, T.AIR); }
+      for (const h of HOLE) { set(e.i * CW + h, fy, T.AIR); set(e.i * CW + h, fy + 1, T.PLAT); }
     }
   }
   // 4) decorative one-way ledges
@@ -76,7 +84,8 @@ export function buildRoom(id) {
   }
   // 5) water in the waterway (decoration over the floor)
   if (r.water) for (let x = 1; x < W - 1; x++) for (const y of [floorY(r.h - 1) - 1]) if (t[y][x] === T.AIR) t[y][x] = T.WATER;
-  return { id, W, H, tiles: t, exits, floorY, room: r };
+  const breakCells = []; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (t[y][x] === T.BREAK) breakCells.push([x, y]);
+  return { id, W, H, tiles: t, exits, floorY, room: r, breakCells };
 }
 
 // spots for things: the floor surface of a cell (tile x, tile y of the air just above the floor)

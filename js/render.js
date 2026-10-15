@@ -1,8 +1,8 @@
 // All drawing: procedural gothic pixel art for rooms, the hero, enemies, bosses, effects and the HUD.
 // The canvas is scaled so that one unit = one game pixel; positions are rounded to whole pixels.
 import { TILE, CW, CH, AREAS, ITEMS, SUBS, BOSSES, RELICS, ROOMS } from './data.js?v=1';
-import { T } from './world.js?v=1';
-import { stats, expToNext, getRoom } from './game.js?v=1';
+import { T } from './world.js?v=2';
+import { stats, expToNext, getRoom } from './game.js?v=2';
 import { L, t } from './i18n.js?v=2';
 
 export const VW = CW * TILE, VH = CH * TILE;

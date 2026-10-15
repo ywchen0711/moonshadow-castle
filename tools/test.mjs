@@ -1,6 +1,6 @@
 // Headless tests of the real game logic: physics against the reachability assumptions, gates, combat, items, saves.
 import { TILE, CW, CH, ROOMS, ITEMS, BOSSES } from '../js/data.js?v=1';
-import * as G from '../js/game.js?v=1';
+import * as G from '../js/game.js?v=2';
 
 let fail = 0;
 const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fail++; };

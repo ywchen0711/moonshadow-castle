@@ -43,7 +43,7 @@ With a gamepad, the menus, shop and title screen use the d-pad to move the highl
 Plain ES modules: no build step. Serve the folder and open `index.html`.
 
 ```
-npm test        # node tools/check.mjs && node tools/test.mjs
+npm test        # node tools/check.mjs && node tools/test.mjs && node tools/audit.mjs
 ```
 
 - `tools/check.mjs` stitches every room into one tile grid and checks progression. It tests each relic set with both cautious and generous jump numbers. Each relic must be reachable with the relics found before it, every gate must hold, and there must be no dead ends.
@@ -52,3 +52,10 @@ npm test        # node tools/check.mjs && node tools/test.mjs
   - every gate (double jump, slide, bat flight) and climbing back out of the catacombs;
   - combat and levelling, items, the shop and saving;
   - that all five bosses can be beaten.
+
+`tools/audit.mjs` runs the real game physics through the whole castle:
+- climbs every stairwell and shaft (with the relic each one needs);
+- drops through every hole;
+- walks through every door both ways, including the slide, breakable-wall and boss-seal gates;
+- flags any place where standing would put you in the next room;
+- checks that every item, relic, candle, save statue and the shop is in open space and within reach.

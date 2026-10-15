@@ -1,6 +1,6 @@
 // Moonshadow Castle: the loop, input (keyboard + touch), screens, dialogs, menus, shop, saving.
 import { AREAS, ITEMS, SUBS, RELICS, SHOP, ROOM } from './data.js?v=1';
-import * as G from './game.js?v=1';
+import * as G from './game.js?v=2';
 import { render, drawIcon, drawMap, VW, VH } from './render.js?v=1';
 import { t, L, STORY, getLang, setLang } from './i18n.js?v=2';
 import * as A from './audio.js?v=1';
