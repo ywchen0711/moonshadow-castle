@@ -1,6 +1,8 @@
 // Headless tests of the real game logic: physics against the reachability assumptions, gates, combat, items, saves.
-import { TILE, CW, CH, ROOMS, ITEMS, BOSSES } from '../js/data.js?v=1';
-import * as G from '../js/game.js?v=2';
+import { TILE, CW, CH, ROOMS, ITEMS, BOSSES, ENEMIES, AREAS } from '../js/data.js?v=2';
+import { T } from '../js/world.js?v=3';
+import * as G from '../js/game.js?v=3';
+import * as I from '../js/items.js?v=1';
 
 let fail = 0;
 const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fail++; };
@@ -93,30 +95,93 @@ const climber = (S2, i) => { const p = S2.p; S2.ents = []; const t = i % 40; ret
   ok(S2.p.lv > lv, `levelling up (lv ${lv} -> ${S2.p.lv})`);
   ok(S2.p.hp > 0, 'still alive');
 }
-// 8) items, equipment, shop, saves
+// 8) items, equipment, the shop, gems, saves
 {
   const S = G.newState(9); const p = S.p;
   p.hp = 10; ok(G.useItem(S, 'potion') && p.hp === 70, 'a potion heals 60');
-  p.gold = 1000; ok(G.buy(S, 'chainmail') && p.gold === 200, 'buying chain mail');
-  const d0 = G.stats(p).def; G.equip(S, 'chainmail'); ok(G.stats(p).def === d0 + ITEMS.chainmail.def - ITEMS.tunic.def, 'equipping armour raises defence');
-  ok(!G.sell(S, 'chainmail'), 'cannot sell the armour you are wearing');
+  p.gold = 1000; ok(G.buy(S, 'hipotion') && p.gold === 700, 'buying a high potion');
+  const chain = I.makeItem('chainmail', 'n', 15, () => 0.99); delete chain.s; p.bag.push(chain);
+  const d0 = G.stats(p).def; p.lv = 1;
+  ok(G.equipItem(S, chain) === 'level', 'items have a required level');
+  p.lv = 20; ok(G.equipItem(S, chain) === null && G.stats(p).def === d0 + 15 - 3, 'wearing chain mail raises defence by its own value');
+  ok(p.bag.some((it) => it.b === 'quilted'), 'the old armour goes back into the bag');
+  const claymore = I.makeItem('claymore', 'n', 10, () => 0.99), shield = I.makeItem('buckler', 'n', 3, () => 0.99); delete claymore.s; delete shield.s;
+  p.bag.push(shield); G.equipItem(S, shield); p.bag.push(claymore); G.equipItem(S, claymore);
+  ok(p.eq.weapon === claymore && !p.eq.shield, 'a two-handed weapon takes the shield off');
+  const r1 = I.makeItem('ring', 'm', 10, Math.random), r2 = I.makeItem('ring', 'm', 10, Math.random); p.bag.push(r1, r2); G.equipItem(S, r1); G.equipItem(S, r2);
+  ok(p.eq.ring1 === r1 && p.eq.ring2 === r2, 'two rings, two ring slots');
+  const sock = I.makeItem('longsword', 'n', 20, () => 0.1); sock.s = 2; sock.g = []; p.bag.push(sock); G.equipItem(S, sock);
+  p.gems.ruby3 = 1; const f0 = G.stats(p).elem.fire; ok(G.socketGem(S, sock, 'ruby3') && G.stats(p).elem.fire === f0 + 20, 'a ruby in a weapon socket adds fire damage');
+  p.gems.topaz1 = 3; p.gold = 10000; ok(G.combineGems(S, 'topaz1') && p.gems.topaz2 === 1 && !p.gems.topaz1, 'three chipped topazes make a flawed one');
+  const n0 = p.bag.length, g = G.gamble(S, 'ring'); ok(g && g.q !== 'n' && p.bag.length === n0 + 1, `gambling a ring gives a magic-or-better ring (${g && g.q})`);
+  const stock = G.shopStock(S); ok(stock.length >= 5, `the shop sells rolled items (${stock.length})`);
+  const sold = p.bag.find((it) => it.b === 'quilted'), gold0 = p.gold; ok(G.sellGear(S, sold) && p.gold > gold0, 'selling an item');
   p.relics.leap = 1; S.flags.boss.greatbat = 1; S.saveRoom = 'r3';
   const d = JSON.parse(JSON.stringify(G.toSave(S)));
   const S2 = G.fromSave(d, 10);
-  ok(S2.roomId === 'r3' && S2.p.relics.leap && S2.flags.boss.greatbat && S2.p.equip.armor === 'chainmail', 'save and load keep room, relics, bosses and gear');
+  ok(S2.roomId === 'r3' && S2.p.relics.leap && S2.flags.boss.greatbat && S2.p.eq.weapon.b === 'longsword' && S2.p.eq.weapon.g[0] === 'ruby3' && S2.p.bag.length === p.bag.length, 'save and load keep room, relics, bosses, gear, gems and the bag');
+  // a save from before items were rolled (version 1) still loads
+  const v1 = { v: 1, p: { lv: 6, exp: 10, hp: 90, mhp: 120, mp: 30, mmp: 30, hearts: 10, mhearts: 40, gold: 500, str: 11, con: 9, lck: 7, equip: { weapon: 'rapier', armor: 'leather', acc: 'luckring' }, items: { potion: 3 }, gear: { shortsword: 1, rapier: 1, leather: 1, tunic: 1, luckring: 1, claymore: 2 }, sub: 'axe', relics: { leap: 1 }, kills: 40 }, flags: { taken: {}, boss: { greatbat: 1 }, seen: {}, visited: {} }, room: 'r3' };
+  const S3 = G.fromSave(v1, 3);
+  ok(S3.p.eq.weapon.b === 'rapier' && S3.p.eq.armor.b === 'leatherarmor' && S3.p.eq.ring1 && S3.p.eq.sub.b === 'axes' && S3.p.bag.filter((it) => it.b === 'claymore').length === 2 && S3.p.mhp === 120, 'an old save is converted to items (and keeps its max HP)');
 }
-// 9) every boss can be fought and beaten by a strong player without crashing
+// 9) mist through iron grates, deep water, warping, the Reversed Castle portal
+{
+  const grateDoor = ROOMS.find((r) => r.area === 'caverns' && G.getRoom(r.id).exits.some((e) => e.gate === 'grate'));
+  const R0 = G.getRoom(grateDoor.id), gx = R0.tiles.flat().filter((t) => t === T.GRATE).length;
+  ok(gx > 0, `iron grates are built at mist gates (${gx} tiles in ${grateDoor.id})`);
+  const deepRoom = ROOMS.find((r) => r.world !== 'rev' && G.getRoom(r.id).tiles.flat().includes(T.DEEP));
+  const S = G.newState(12); G.loadRoom(S, deepRoom.id, null); const DR = S.R;
+  let wx = -1, wy = -1; for (let y = 0; y < DR.H && wx < 0; y++) for (let x = 0; x < DR.W; x++) if (DR.tiles[y][x] === T.DEEP && DR.tiles[y - 1]?.[x] === T.DEEP) { wx = x; wy = y; break; }
+  S.ents = []; S.p.x = wx * TILE + 3; S.p.y = wy * TILE - 10; S.p.vx = S.p.vy = 0; S.p.face = 1; const hp0 = S.p.hp;
+  run(S, 0.2, () => ({})); const inWater = () => S.R.tiles[Math.floor((S.p.y + S.p.h / 2) / TILE)]?.[Math.floor((S.p.x + S.p.w / 2) / TILE)] === T.DEEP;
+  ok(S.p.hp < hp0 && !inWater(), 'deep water puts you back on dry ground without the snorkel');
+  S.p.relics.snorkel = 1; S.p.hp = S.p.mhp; S.p.x = wx * TILE + 3; S.p.y = wy * TILE - 10; S.p.vy = 0; const y0 = S.p.y;
+  const room0 = S.roomId; run(S, 0.6, (S2, i) => ({ jump: i % 10 < 3 ? 1 : 0 })); ok(S.p.hp === S.p.mhp && (S.roomId !== room0 || S.p.y < y0), 'with the snorkel you swim up through it');
+  const W2 = G.newState(13); W2.flags.warps = { lab3: 1 };
+  const warp = ROOMS.find((r) => r.special === 'warp' && r.world !== 'rev'); W2.flags.warps[warp.id] = 1;
+  ok(G.warpTo(W2, warp.id) && W2.roomId === warp.id, `warping to ${warp.id}`);
+  const P = G.newState(14); P.p.relics.moonEye = 1; P.flags.boss.count = 1; G.loadRoom(P, 't5', null);
+  ok(P.props.some((q) => q.kind === 'portal' && q.to === 'R:r1'), 'with the Moon Eye, the throne room opens the way to the Reversed Castle');
+  G.loadRoom(P, 'R:l2', null); ok(P.world === 'rev' && P.mlvl === AREAS.library.lv + 25, `the Reversed Castle is much stronger (monster level ${P.mlvl})`);
+}
+// 10) every monster: spawn it next to the player and fight it for a while
+{
+  let crashed = 0; const killed = [];
+  for (const kind of Object.keys(ENEMIES)) {
+    const S = G.newState(20); place(S, 'r4', 4, 0); S.p.bhp = 99999; G.stats(S.p); S.p.hp = S.p.mhp; S.p.str = 300;
+    const e = G.spawnEnemy(S, kind, 12 * TILE, S.R.floorY(0) * TILE, 10); if (e.st === 'under') e.st = 'walk';
+    try { run(S, 12, (S2, i) => { S2.p.hp = S2.p.mhp; const t = S2.ents[0]; if (!t) { S2.stop = 1; return {}; } const tx = t.x + t.w / 2, px = S2.p.x + S2.p.w / 2; return { right: tx > px + 16 ? 1 : 0, left: tx < px - 16 ? 1 : 0, attack: i % 14 < 2 ? 1 : 0, jump: t.y + t.h < S2.p.y - 8 && i % 30 < 15 ? 1 : 0 }; }); }
+    catch (err) { crashed++; console.log('     crash', kind, err.message); }
+    if (e.dead) killed.push(kind);
+  }
+  ok(crashed === 0, `all ${Object.keys(ENEMIES).length} monster types run without errors`);
+  ok(killed.length >= Object.keys(ENEMIES).length - 6, `most can be hunted down in a small room (${killed.length}/${Object.keys(ENEMIES).length}; not: ${Object.keys(ENEMIES).filter((k) => !killed.includes(k)).join(', ')})`);
+}
+// 11) every boss can be fought and beaten by a strong player without crashing
 for (const kind of Object.keys(BOSSES)) {
   const room = ROOMS.find((r) => r.boss === kind);
-  const S = G.newState(11); Object.assign(S.p, { str: 200, mhp: 99999, hp: 99999, relics: { leap: 1, cloak: 1, wing: 1 } });
-  place(S, room.id, 6, 0); S.ents = S.ents.filter((e) => e.boss);
-  // re-spawn the boss since place() cleared ents
+  const S = G.newState(11); Object.assign(S.p, { str: 400, bhp: 99999, relics: { leap: 1, cloak: 1, wing: 1 } }); G.stats(S.p);
   G.loadRoom(S, room.id, null); S.p.x = 8 * TILE; S.p.y = S.R.floorY(0) * TILE - S.p.h;
   let t = 0, sealed = false;
-  run(S, 90, (S2, i) => { t = i * DT; if (S2.sealed) sealed = true; S2.p.hp = 99999; const b = S2.boss; if (!b || b.dead || S2.won) { S2.stop = 1; return {}; }
-    const bx = b.x + b.w / 2, px = S2.p.x + S2.p.w / 2; return { right: bx > px + 20 ? 1 : 0, left: bx < px - 20 ? 1 : 0, attack: i % 16 < 2 ? 1 : 0, jump: b.y + b.h < S2.p.y && i % 40 < 20 ? 1 : 0 }; });
-  ok(sealed && S.flags.boss[kind], `${kind}: the doors seal, and it is beaten (${t.toFixed(1)} s)`);
+  try {
+    run(S, BOSSES[kind].fly ? 240 : 120, (S2, i) => { t = i * DT; if (S2.sealed) sealed = true; S2.p.hp = S2.p.mhp; const b = S2.boss; if (!b || b.dead || S2.won) { S2.stop = 1; return {}; }
+      const bx = b.x + b.w / 2, px = S2.p.x + S2.p.w / 2; return { right: bx > px + 20 ? 1 : 0, left: bx < px - 20 ? 1 : 0, attack: i % 16 < 2 ? 1 : 0, jump: b.y + b.h < S2.p.y && (i % 40 < 12 || (i % 40 > 16 && i % 40 < 26)) ? 1 : 0 }; });
+  } catch (err) { console.log('     crash', kind, err.stack.split('\n').slice(0, 3).join(' | ')); }
+  ok(sealed && S.flags.boss[kind], `${kind} (${room.id}): the doors seal, and it is beaten (${t.toFixed(1)} s)`);
   if (kind === 'count') ok(S.won, 'beating the Count wins the game');
+  if (kind === 'moonlord') ok(S.won && S.trueEnd, 'beating the Moon Sovereign gives the true ending');
+}
+// gallery: kills and found gear are remembered and survive a save
+{
+  const S = G.newState(5); place(S, 'r4', 8, 0); S.p.face = 1;
+  const e = G.spawnEnemy(S, 'skeleton', S.p.x + 24, S.R.floorY(0) * TILE, 3); e.hp = 1; e.st = 'idle';
+  run(S, 1, (S2, i) => ({ attack: i % 20 < 3 ? 1 : 0 }));
+  const u = I.makeItem('longsword', 'u', 20, Math.random, { id: 'moonblade' }); G.giveGear(S, u);
+  ok(S.flags.dex && S.flags.dex.skeleton === 1, 'gallery: a kill is counted');
+  ok(S.flags.found.longsword && S.flags.found['u:moonblade'], 'gallery: the base and the unique are marked found');
+  const S2 = G.fromSave(JSON.parse(JSON.stringify(G.toSave(S))), 1);
+  ok(S2.flags.dex.skeleton === 1 && S2.flags.found['u:moonblade'], 'gallery: progress survives save and load');
 }
 console.log('explored after a short walk:', G.explored(G.newState(1)) + '%');
 console.log(fail ? `${fail} FAILED` : 'all passed');

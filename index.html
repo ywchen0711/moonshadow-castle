@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0612">
 <title>月影城 Moonshadow Castle</title>
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <div id="app">
@@ -19,14 +19,22 @@
       <button id="bCont" data-t="cont"></button>
       <button id="bNew" data-t="newGame"></button>
       <button id="bHow" data-t="howTo"></button>
+      <button id="bDex" data-t="dexT"></button>
       <div class="row"><button id="bZh" class="small">中文</button><button id="bEn" class="small">English</button></div>
     </div>
-    <div class="ver">v1.0</div>
+    <div class="ver">v2.0</div>
   </div>
 
   <div id="how" class="screen panel hidden">
     <h2 data-t="howTo"></h2>
     <p data-t="controlsKb"></p><p data-t="controlsPad"></p><p data-t="controlsTouch"></p><p data-t="controlsTips"></p>
+    <button class="closeBtn" data-t="back"></button>
+  </div>
+
+  <div id="dex" class="screen panel hidden">
+    <h2 data-t="dexT"></h2>
+    <div class="tabs dtabs"></div>
+    <div class="dbody"></div>
     <button class="closeBtn" data-t="back"></button>
   </div>
 
@@ -48,10 +56,17 @@
 
   <div id="shop" class="screen panel hidden">
     <h2 data-t="shopT"></h2>
-    <div class="tabs"><button data-mode="buy" data-t="buy"></button><button data-mode="sell" data-t="sell"></button><span class="goldLbl"></span></div>
+    <div class="tabs"><button data-mode="buy" data-t="buy"></button><button data-mode="sell" data-t="sell"></button><button data-mode="gamble" data-t="gamble"></button><button data-mode="gems" data-t="gems"></button><span class="goldLbl"></span></div>
     <div class="body"></div>
     <div class="msg"></div>
     <button class="closeBtn" data-t="close"></button>
+  </div>
+
+  <div id="warp" class="screen panel hidden">
+    <h2 data-t="warpT"></h2>
+    <p class="sm" data-t="warpHelp"></p>
+    <div class="body"></div>
+    <button class="closeBtn" data-t="stay"></button>
   </div>
 
   <div id="over" class="screen hidden">
@@ -72,13 +87,14 @@
       <button data-k="dash" class="tb s1"></button>
       <button data-k="bat" class="tb s2"></button>
       <button data-k="sub" class="tb s3"></button>
+      <button data-k="mist" class="tb s4" style="display:none"></button>
       <button data-k="attack" class="tb big1"></button>
       <button data-k="jump" class="tb big2"></button>
     </div>
     <div id="topBtns"><button data-k="map" class="tt">🗺</button><button data-k="menu" class="tt">☰</button></div>
   </div>
 </div>
-<script type="module" src="js/main.js?v=4"></script>
+<script type="module" src="js/main.js?v=5"></script>
 <script src="/hub.js" data-pos="top-left"></script>
 </body>
 </html>

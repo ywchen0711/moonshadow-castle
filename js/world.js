@@ -1,15 +1,19 @@
 // Builds each room's tile map from the castle data: walls, floors between cell rows (with a hole and stepping
 // platforms), door openings, ability gates, breakable walls, boss seals, decorations. Pure: tools/check.mjs uses it.
-import { CW, CH, ROOMS, DOORS, ROOM } from './data.js?v=1';
+import { CW, CH, ROOMS, DOORS, ROOM } from './data.js?v=2';
 
 // tiles
-export const T = { AIR: 0, SOLID: 1, PLAT: 2, BREAK: 3, SEAL: 4, WATER: 5 };
-export const isSolid = (t, sealed) => t === T.SOLID || t === T.BREAK || (t === T.SEAL && sealed);
+// GRATE: iron bars (only mist passes) · DEEP: deep water (needs the snorkel; you swim in it)
+export const T = { AIR: 0, SOLID: 1, PLAT: 2, BREAK: 3, SEAL: 4, WATER: 5, GRATE: 6, DEEP: 7 };
+export const isSolid = (t, sealed, mist) => t === T.SOLID || t === T.BREAK || (t === T.SEAL && sealed) || (t === T.GRATE && !mist);
 
 function rng(seed) { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
 const hash = (str) => { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 
-export function roomAt(cx, cy) { return ROOMS.find((r) => cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h); }
+// a lookup table from map cell to room (the castle is big)
+const CELL = new Map();
+for (const r of ROOMS) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) CELL.set(x + ',' + y, r);
+export function roomAt(cx, cy) { return CELL.get(cx + ',' + cy); }
 
 // exits per room: { side: 'L'|'R'|'U'|'D', i (row for L/R, column for U/D, local), gate, to (room id) }
 export const EXITS = {};
@@ -30,6 +34,7 @@ export function buildRoom(id) {
   const floorY = (row) => (row + 1) * CH - 2;          // the surface tile row of a cell row's floor
   const exits = EXITS[id];
   const noPlat = exits.some((e) => e.gate === 'bat' && e.side === 'D') || id === 't1';
+  const deepCells = [], grateCells = [];
   // 1) carve every cell row: air above each 2-tile floor slab (the top row of the room is the ceiling)
   for (let row = 0; row < r.h; row++) for (let y = row === 0 ? (r.outside ? 0 : 1) : row * CH; y < floorY(row); y++) for (let x = 1; x < W - 1; x++) t[y][x] = T.AIR;
   const shaft = new Set();             // cells with a way up through their ceiling: no decorative platforms there
@@ -38,7 +43,7 @@ export function buildRoom(id) {
   // fits under the slab), and never on the room's top row (standing there would put you in the room above).
   // The double-jump gate leaves a 5-tile gap above the floor.
   const stairs = (cx, yTarget, yFloor, gate) => {
-    if (noPlat || gate === 'bat') return;
+    if (noPlat || gate === 'bat' || gate === 'deep') return;
     const steps = [];
     for (let y = yTarget + 3; y <= yFloor - 2; y += 3) steps.push(y);
     if (gate === 'dj') { while (steps.length && steps[steps.length - 1] > yFloor - 5) steps.pop(); if (steps[steps.length - 1] < yFloor - 6) steps.push(yFloor - 5); }
@@ -61,19 +66,22 @@ export function buildRoom(id) {
     if (e.side === 'L' || e.side === 'R') {
       const x = e.side === 'L' ? 0 : W - 1, fy = floorY(e.i);
       const h = e.gate === 'slide' ? 1 : 4;
-      for (let y = fy - h; y < fy; y++) set(x, y, e.gate === 'break' && !r.secret ? T.BREAK : T.AIR);
+      for (let y = fy - h; y < fy; y++) set(x, y, e.gate === 'break' && !r.secret ? T.BREAK : e.gate === 'grate' ? T.GRATE : T.AIR);
+      if (e.gate === 'deep') { const dir = e.side === 'L' ? 1 : -1; for (let k = 0; k < 7; k++) for (let y = fy - 10; y < fy; y++) deepCells.push([x + dir * k, y]); }
       if (e.gate === 'slide') {       // a low crawlspace leading to the opening
         const dir = e.side === 'L' ? 1 : -1;
         for (let k = 1; k <= 5; k++) for (let y = fy - 4; y < fy - 1; y++) set(x + dir * k, y, T.SOLID);
       }
       if (r.boss) for (let y = fy - h; y < fy; y++) set(e.side === 'L' ? 1 : W - 2, y, T.SEAL);
     } else if (e.side === 'U') {
-      for (const h of HOLE) set(e.i * CW + h, 0, T.AIR);
+      for (const h of HOLE) set(e.i * CW + h, 0, e.gate === 'grate' ? T.GRATE : T.AIR);
       stairs(e.i, -1, floorY(0), e.gate);
       shaft.add(e.i + ',0');
+      if (e.gate === 'deep') for (let y = 0; y < floorY(0); y++) for (let x = e.i * CW + HOLE[0] - 2; x <= e.i * CW + HOLE[2] + 2; x++) deepCells.push([x, y]);
     } else {
       const fy = floorY(r.h - 1);
-      for (const h of HOLE) { set(e.i * CW + h, fy, T.AIR); set(e.i * CW + h, fy + 1, T.PLAT); }
+      for (const h of HOLE) { set(e.i * CW + h, fy, e.gate === 'grate' ? T.GRATE : T.AIR); set(e.i * CW + h, fy + 1, e.gate === 'grate' ? T.GRATE : e.gate === 'deep' ? T.AIR : T.PLAT); }
+      if (e.gate === 'deep') for (let y = fy - 4; y <= fy + 1; y++) for (let x = e.i * CW + HOLE[0] - 2; x <= e.i * CW + HOLE[2] + 2; x++) deepCells.push([x, y]);
     }
   }
   // 4) decorative one-way ledges
@@ -82,6 +90,8 @@ export function buildRoom(id) {
     if (roll > 0.55 || shaft.has(cx + ',' + row)) continue;
     for (let x = x0; x < x0 + len; x++) if (t[y][x] === T.AIR) set(x, y, T.PLAT);
   }
+  // flooded passages (deep water fills the air only)
+  for (const [x, y] of deepCells) if (t[y] && (t[y][x] === T.AIR || (t[y][x] === T.PLAT && y > 0))) t[y][x] = T.DEEP;
   // 5) water in the waterway (decoration over the floor)
   if (r.water) for (let x = 1; x < W - 1; x++) for (const y of [floorY(r.h - 1) - 1]) if (t[y][x] === T.AIR) t[y][x] = T.WATER;
   const breakCells = []; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (t[y][x] === T.BREAK) breakCells.push([x, y]);

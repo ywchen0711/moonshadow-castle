@@ -78,6 +78,7 @@ export function sfx(id) {
   const t = ac.currentTime, g = sfxGain;
   switch (id) {
     case 'swing': noise(g, t, 0.09, 0.5, 2600, 0.6); break;
+    case 'block': tone(g, 'square', 1600, t, 0.07, 0.15, 900); noise(g, t, 0.05, 0.3, 4000, 1); break;
     case 'hit': tone(g, 'square', 300, t, 0.08, 0.25, 90); noise(g, t, 0.06, 0.4, 900); break;
     case 'hitboss': tone(g, 'square', 180, t, 0.12, 0.3, 60); noise(g, t, 0.08, 0.5, 600); break;
     case 'die': noise(g, t, 0.35, 0.6, 500, 0.5); tone(g, 'sawtooth', 200, t, 0.3, 0.15, 40); break;
