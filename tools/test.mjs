@@ -1,8 +1,9 @@
 // Headless tests of the real game logic: physics against the reachability assumptions, gates, combat, items, saves.
 import { TILE, CW, CH, ROOMS, ITEMS, BOSSES, ENEMIES, AREAS } from '../js/data.js?v=2';
 import { T } from '../js/world.js?v=3';
-import * as G from '../js/game.js?v=4';
-import * as I from '../js/items.js?v=2';
+import * as G from '../js/game.js?v=5';
+import * as I from '../js/items.js?v=3';
+import { DROPS } from '../js/drops.js?v=1';
 
 let fail = 0;
 const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fail++; };
@@ -204,6 +205,25 @@ for (const kind of Object.keys(BOSSES)) {
   const ls = swing([['ls', 50]], null); ls.S.p.hp = 1; run(ls.S, 0.4, (S2, i) => ({ attack: i === 0 ? 1 : 0 })); ok(ls.S.p.hp > 1, 'life steal heals on hit');
   const S = G.newState(32); S.p.items.antidote = 1; ok(!G.useItem(S, 'antidote') && S.p.items.antidote === 1, 'an antidote is not wasted when you are not poisoned');
   ok(Object.values(I.UNIQUES).filter((u) => u.mods.some(([k]) => ['ds', 'crush', 'bleed', 'stun', 'freeze'].includes(k))).length >= 8, 'uniques carry the special effects');
+}
+// drop tables and the elite form
+{
+  const kinds = Object.keys(ENEMIES).filter((k) => !BOSSES[k]);
+  ok(kinds.every((k) => DROPS[k]), `every monster has a drop table (${Object.keys(DROPS).length}/${kinds.length})`);
+  const valid = (D) => (D.t === 'item' ? !!ITEMS[D.id] : D.t === 'gem' ? !!I.GEMS[D.g.replace(/\d/, '')] : D.t === 'gear' ? !!I.BASES[D.b] : !!I.UNIQUES[D.id]);
+  ok(kinds.every((k) => ['n', 'r', 'en', 'er'].every((s) => valid(DROPS[k][s]))), 'every drop is a real item, gem, base or unique');
+  ok(new Set(kinds.map((k) => DROPS[k].er.id)).size === kinds.length, 'every species has a different unique as its elite rare drop');
+  const S = G.newState(40); place(S, 'r4', 8, 0); S.p.face = 1; S.p.str = 400; G.stats(S.p);
+  const e = G.spawnEnemy(S, 'skeleton', S.p.x + 30, S.R.floorY(0) * TILE, 5), h0 = e.h, hp0 = e.mhp; G.promote(S, e, 'elite');
+  ok(e.tier === 'elite' && e.h > h0 && e.mhp >= hp0 * 6 && e.name.zh === '強敵・骷髏兵', `the elite form is bigger and tougher (${e.name.zh}, hp ${hp0} -> ${e.mhp})`);
+  const keep = {}; for (const s of ['n', 'r', 'en', 'er']) { keep[s] = DROPS.skeleton[s].p; DROPS.skeleton[s].p = 1; }
+  run(S, 3, (S2, i) => ({ attack: i % 16 < 2 ? 1 : 0, right: !e.dead && S2.p.x < e.x - 24 ? 1 : 0 }));
+  for (const s of ['n', 'r', 'en', 'er']) DROPS.skeleton[s].p = keep[s];
+  ok(e.dead && S.flags.dex['elite:skeleton'] === 1, 'beating an elite is counted in the gallery');
+  ok(['n', 'r', 'en', 'er'].every((s) => S.flags.drops['skeleton:' + s]), 'its normal, rare, elite normal and elite rare drops are recorded');
+  ok(S.p.bag.some((it) => it.q === 'u' && it.id === DROPS.skeleton.er.id) || S.drops.some((d) => d.k === 'gear' && d.it.id === DROPS.skeleton.er.id), `the elite rare drop is ${DROPS.skeleton.er.id}`);
+  let elites = 0; for (let i = 0; i < 300; i++) { const T = G.newState(100 + i); G.loadRoom(T, 'c2', null); elites += T.ents.some((x) => x.tier === 'elite') ? 1 : 0; }
+  ok(elites > 10 && elites < 70, `elites appear now and then (${elites} of 300 visits)`);
 }
 console.log('explored after a short walk:', G.explored(G.newState(1)) + '%');
 console.log(fail ? `${fail} FAILED` : 'all passed');

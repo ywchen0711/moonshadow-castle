@@ -2,9 +2,9 @@
 // The canvas is scaled so that one unit = one game pixel; positions are rounded to whole pixels.
 import { TILE, CW, CH, AREAS, ITEMS, BOSSES, RELICS, ROOMS, ENEMIES, ROOM_GEAR } from './data.js?v=2';
 import { T } from './world.js?v=3';
-import { stats, expToNext, getRoom, subCost } from './game.js?v=4';
-import { L, t, getLang } from './i18n.js?v=4';
-import * as I from './items.js?v=2';
+import { stats, expToNext, getRoom, subCost } from './game.js?v=5';
+import { L, t, getLang } from './i18n.js?v=5';
+import * as I from './items.js?v=3';
 
 export const VW = CW * TILE, VH = CH * TILE;
 let ctx = null;
@@ -218,6 +218,13 @@ function drawBat(S, x, y, s, body, wing, phase) {
 }
 
 // ------------------------------------------------------------------ enemies
+// an elite is its species' art drawn 1.25x from its feet (the art is drawn at the normal size, then scaled)
+function drawElite(S, e) {
+  const fx = e.x + e.w / 2, fy = e.y + e.h, keep = [e.x, e.y, e.w, e.h];
+  ctx.save(); ctx.translate(fx, fy); ctx.scale(e.w / e.bw, e.h / e.bh); ctx.translate(-fx, -fy);
+  e.w = e.bw; e.h = e.bh; e.x = fx - e.w / 2; e.y = fy - e.h;
+  try { drawEnemy(S, e); } finally { [e.x, e.y, e.w, e.h] = keep; ctx.restore(); }
+}
 // paralysis stars, an ice block, dripping blood, poison bubbles
 function drawStatus(S, e) {
   const cx = e.x + e.w / 2;
@@ -230,7 +237,7 @@ function drawEnemy(S, e) {
   const x = Math.round(e.x + e.w / 2), y = Math.round(e.y + e.h), fl = e.flash > 0;
   ctx.save(); ctx.translate(x, y); ctx.scale(e.face < 0 ? -1 : 1, 1);
   if (fl) ctx.filter = 'brightness(3)';
-  if (e.tier === 'unique' || e.tier === 'champion') { ctx.shadowColor = e.tier === 'unique' ? '#ffd070' : '#5a8aff'; ctx.shadowBlur = 6; }
+  if (e.tier === 'unique' || e.tier === 'champion' || e.tier === 'elite') { ctx.shadowColor = e.tier === 'elite' ? '#ff2a2a' : e.tier === 'unique' ? '#ffd070' : '#5a8aff'; ctx.shadowBlur = e.tier === 'elite' ? 9 : 6; }
   if (S.freeze > 0) ctx.filter = 'grayscale(1) brightness(1.2)';
   else if (e.frozen > 0) ctx.filter = 'grayscale(1) brightness(1.5) sepia(0.6) hue-rotate(170deg) saturate(3)';
   else if (e.pois && !fl) ctx.filter = 'sepia(0.6) hue-rotate(60deg) saturate(2)';
@@ -612,9 +619,9 @@ function drawBody(S, e, B, tm) {
 // a name label over unique monsters (gold) and champions (blue)
 function monsterLabel(e) {
   if (!e.tier || e.tier === 'normal') return;
-  const x = Math.round(e.x + e.w / 2), y = Math.round(e.y) - 6, name = e.tier === 'unique' ? L(e.name) : L(ENEMIES[e.kind]);
+  const x = Math.round(e.x + e.w / 2), y = Math.round(e.y) - 6, name = e.name ? L(e.name) : L(ENEMIES[e.kind]);
   ctx.font = 'bold 6px "Trebuchet MS", sans-serif'; ctx.textAlign = 'center';
-  ctx.fillStyle = '#000'; ctx.fillText(name, x + 1, y + 1); ctx.fillStyle = e.tier === 'unique' ? '#d8b878' : '#7a9cff'; ctx.fillText(name, x, y);
+  ctx.fillStyle = '#000'; ctx.fillText(name, x + 1, y + 1); ctx.fillStyle = e.tier === 'elite' ? '#ff6a5a' : e.tier === 'unique' ? '#d8b878' : '#7a9cff'; ctx.fillText(name, x, y);
 }
 // decorations for the new areas (one map cell)
 function decorateStyle(R0, cx, row, A, rnd, x0, top, fy, style) {
@@ -661,7 +668,7 @@ export function render(c, S, scale) {
   for (let y = 0; y < Rm.H; y++) for (let x = 0; x < Rm.W; x++) if (Rm.tiles[y][x] === T.WATER) { ctx.fillStyle = 'rgba(60,120,140,0.45)'; ctx.fillRect(x * TILE, y * TILE + 6 + Math.sin(S.time * 2 + x * 0.7) * 1.5, 16, 12); R(x * TILE + ((S.time * 8 + x * 5) % 16), y * TILE + 6 + Math.sin(S.time * 2 + x * 0.7) * 1.5, 4, 1, '#9ad8e8'); }
   drawProps(S);
   drawDrops(S);
-  for (const e of S.ents) { drawEnemy(S, e); if (!e.dead) drawStatus(S, e); }
+  for (const e of S.ents) { if (e.tier === 'elite' && e.bw) drawElite(S, e); else drawEnemy(S, e); if (!e.dead) drawStatus(S, e); }
   for (const e of S.ents) monsterLabel(e);
   if (!S.over || Math.floor(S.overT * 4) % 2 === 0 || S.overT > 1.5) drawHero(S, p);
   drawShots(S);

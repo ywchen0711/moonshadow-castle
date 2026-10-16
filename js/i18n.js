@@ -74,6 +74,10 @@ const S = {
   dexUnknown: { zh: '？？？', en: '???' }, dexNotFound: { zh: '尚未取得', en: 'Not found yet' },
   hpFull: { zh: '生命已經是滿的', en: 'Your HP is already full' }, mpFull: { zh: '魔力已經是滿的', en: 'Your MP is already full' },
   notPoisoned: { zh: '你沒有中毒', en: 'You are not poisoned' }, noUseBoss: { zh: '頭目戰中不能使用', en: 'Not during a boss fight' }, cantUse: { zh: '現在不能使用', en: 'You cannot use that now' },
+  drops: { zh: '掉落物', en: 'Drops' }, drop_n: { zh: '一般掉落', en: 'Normal' }, drop_r: { zh: '稀有掉落', en: 'Rare' },
+  drop_en: { zh: '強敵一般掉落', en: 'Elite normal' }, drop_er: { zh: '強敵稀有掉落', en: 'Elite rare' }, dropsFound: { zh: '掉落物', en: 'Drops' },
+  eliteForm: { zh: '強敵型態', en: 'Elite form' }, eliteHelp: { zh: '偶爾會在牠出沒的地方出現，更大、更強，有自己的掉落物', en: 'Sometimes appears where it lives: bigger, stronger, with its own drops' },
+  eliteHere: { zh: '強敵出現了！', en: 'An elite monster is here!' },
   dexRolls: { zh: '※ 數值為範例，實際掉落時會在範圍內浮動', en: '* Example values: real drops roll within a range' }, trueEnd: { zh: '真結局', en: 'True Ending' },
 };
 export const t = (k) => L(S[k]) || k;

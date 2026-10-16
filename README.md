@@ -20,11 +20,13 @@ Every hundred years the moon turns black above Moonshadow Castle, and Count Vorl
   - **64 uniques** and **8 sets (34 pieces)** with 2-piece, 3-piece and full-set bonuses.
   - **Sockets and gems.** 7 gems × 4 grades, with different effects in weapons and armour. Combine 3 gems into the next grade at the shop.
   - **Special effects on weapons:** Deadly Strike (double damage), Crushing Blow (a quarter of the enemy's life), Open Wounds (bleeding), Paralysis, Freezing, Ignore Defense, Knockback, poison and life/mana steal. They come as affixes and on 8 uniques built around them, such as Skullsplitter, Bloodthirster, Viperfang and Earthshaker. Enemies show their state: paralysis stars, an ice block, dripping blood, green poison.
+  - **Monster drops:** every species has a normal drop (6%) and a rare drop (2%: a rare item of one base).
+  - **Elite forms (強敵):** now and then one monster in a room is its species' elite form: 25% bigger, red aura, 6× life, one random power, 8× EXP. It has two more drops of its own: an elite normal drop (50%, a gem matching the monster) and an elite rare drop (12%, a unique that is different for every species). Magic find raises the rare chances.
   - **Champion and unique monsters** with random modifiers and better drops.
 - **RPG growth:** levels to 99, and 3 stat points per level for STR / CON / INT / LCK. Equip 11 slots on a paper doll: weapon, shield, helm, armour, cloak, gloves, boots, amulet, two rings and a sub-weapon. You get a 60-slot bag, a 120-slot stash in save rooms, and an item card that compares each item with what you wear.
 - **Shops:** buy potions and rolled gear, sell, **gamble** for mystery items, and combine gems.
 - **Gallery (圖鑑):** open it from the title screen or the pause menu.
-  - Every monster (39) and boss (21), with its real sprite, stats, element and resistances, and where it lives.
+  - Every monster (39) and boss (21), with its real sprite, stats, element and resistances, and where it lives. Each monster also shows its four drops (normal, rare, elite normal, elite rare) with their chances, and its elite form.
   - Every base item (100), unique (56) and set piece (34), plus relics, potions and all 28 gems.
   - Things you have defeated or found are marked and counted. Anything not met or found yet is shown only as a shadow (？？？).
 - **39 monster types and 21 bosses**, each boss with its own pattern. Examples: the Chimera, Spider Queen, Doppelganger, Treant, Minotaur, Scylla, Frost Wyrm, Mimic King, Kraken, Reaper and the Moon Sovereign.

@@ -2,7 +2,8 @@
 // No DOM here: main.js feeds input and reads S; tools/test.mjs drives it headless.
 import { TILE, CW, CH, AREAS, ROOM, ROOMS, RELICS, ENEMIES, BOSSES, ITEMS, SUB_SPOTS, LEVEL_EXP, ROOM_GEAR } from './data.js?v=2';
 import { T, buildRoom, roomAt } from './world.js?v=3';
-import * as I from './items.js?v=2';
+import * as I from './items.js?v=3';
+import { DROPS } from './drops.js?v=1';
 
 export const PH = { G: 900, JUMP: 335, DJUMP: 300, WALK: 112, FALL: 400, SLIDE: 230, DASH: 210, BAT: 125, MIST: 80, SWIM: 170, W: 10, H: 28, HC: 14 };
 const roomCache = {};
@@ -250,14 +251,24 @@ function applyMod(e, m) {
   if (m === 'stone') { e.def += 8 + e.mlvl; e.res.phys = Math.max(e.res.phys || 0, 0.3); }
   if (m === 'fireE' || m === 'coldE' || m === 'ltngE') { const el = { fireE: 'fire', coldE: 'cold', ltngE: 'ltng' }[m]; e.elem = el; e.res[el] = 0.75; }
 }
+// the elite form (強敵): a bigger, much tougher version of the species, with its own drops
+function makeElite(S, e, rnd) {
+  e.tier = 'elite'; e.mods = [];
+  e.bw = e.w; e.bh = e.h; const k = 1.25;
+  e.x -= (e.w * (k - 1)) / 2; e.y -= e.h * (k - 1); e.hy = e.y; e.w = Math.round(e.w * k); e.h = Math.round(e.h * k);
+  e.hp = e.mhp = Math.round(e.mhp * 6); e.atk = Math.round(e.atk * 1.6); e.def += 2 + Math.floor(e.mlvl / 2); e.exp = Math.round(e.exp * 8);
+  e.name = { zh: '強敵・' + ENEMIES[e.kind].zh, en: 'Elite ' + ENEMIES[e.kind].en };
+  applyMod(e, ['fast', 'strong', 'stone', 'vamp'][Math.floor(rnd() * 4)]);
+}
 export function promote(S, e, tier, rnd = S.rnd) {
+  if (tier === 'elite') { makeElite(S, e, rnd); return; }
   const pick = (a) => a[Math.floor(rnd() * a.length)];
   e.tier = tier; e.mods = [];
   const k = tier === 'unique' ? 4 : 2.5;
   e.hp = e.mhp = Math.round(e.mhp * k); e.atk = Math.round(e.atk * (tier === 'unique' ? 1.4 : 1.25)); e.exp = Math.round(e.exp * (tier === 'unique' ? 6 : 3));
   if (tier === 'unique') {
     const a = pick(UN1), b = pick(UN2), c = pick(UN3);
-    e.name = [a[0] + b[0] + '．' + c[0], a[1] + b[1] + ' ' + c[1]];
+    e.name = { zh: a[0] + b[0] + '．' + c[0], en: a[1] + b[1] + ' ' + c[1] };
     const pool = Object.keys(MMODS); const n = 1 + Math.floor(rnd() * (S.world === 'rev' ? 3 : 2));
     for (let i = 0; i < n; i++) { const m = pool.splice(Math.floor(rnd() * pool.length), 1)[0]; applyMod(e, m); }
   } else if (rnd() < 0.5) applyMod(e, pick(['fast', 'strong', 'stone']));
@@ -265,6 +276,9 @@ export function promote(S, e, tier, rnd = S.rnd) {
 function promoteMonsters(S, rnd) {
   const list = S.ents.filter((e) => !e.boss && e.kind !== 'bat'); if (!list.length) return;
   const boost = S.world === 'rev' ? 1.6 : 1;
+  // sometimes one of the room's monsters is its elite form instead (not one hanging from the ceiling)
+  const can = list.filter((e) => e.st !== 'hang' && DROPS[e.kind]);
+  if (can.length && rnd() < 0.1 * boost) { const e = can[Math.floor(rnd() * can.length)]; makeElite(S, e, rnd); S.ev.push({ t: 'toast', key: 'eliteHere' }); return; }
   if (rnd() < 0.07 * boost) { const u = list[Math.floor(rnd() * list.length)]; promote(S, u, 'unique', rnd); for (const e of list) if (e !== u) { e.hp = e.mhp = Math.round(e.mhp * 1.3); } }
   else if (list.length >= 2 && rnd() < 0.1 * boost) for (const e of list.slice(0, 3)) promote(S, e, 'champion', rnd);
 }
@@ -541,7 +555,7 @@ function killEnemy(S, e) {
   burst(S, cx, cy, e.boss ? '#ffd070' : '#ff9a60', e.boss ? 40 : 14, e.boss ? 160 : 90);
   S.fx.push({ k: 'boom', x: cx, y: cy, t: 0.4, r: Math.max(e.w, e.h) });
   sfx(S, e.boss ? 'bossdie' : 'die');
-  S.p.kills++; const dx = (S.flags.dex ||= {}); dx[e.kind] = (dx[e.kind] || 0) + 1;
+  S.p.kills++; const dx = (S.flags.dex ||= {}); dx[e.kind] = (dx[e.kind] || 0) + 1; if (e.tier === 'elite') dx['elite:' + e.kind] = (dx['elite:' + e.kind] || 0) + 1;
   if (st.hok) S.p.hp = Math.min(S.p.mhp, S.p.hp + st.hok);
   if (st.heok) S.p.hearts = Math.min(S.p.mhearts, S.p.hearts + st.heok);
   if (e.exp) gainExp(S, e.exp);
@@ -559,7 +573,19 @@ function killEnemy(S, e) {
   const r = S.rnd, drops = e.drops || {};
   if (drops.heart && r() < drops.heart) dropAt(S, cx, cy, { k: 'heart', n: r() < 0.15 ? 5 : 1 });
   if ((drops.gold || 0.25) && r() < (drops.gold || 0.25) * (e.tier && e.tier !== 'normal' ? 2 : 1)) dropAt(S, cx, cy, { k: 'gold', n: Math.round((5 + mlvl * 4 + r() * mlvl * 6) * (1 + st.gf / 100) * (e.tier === 'unique' ? 3 : 1)) });
-  rollLoot(S, mlvl, e.tier || 'normal', cx, cy);
+  rollLoot(S, mlvl, e.tier === 'elite' ? 'unique' : e.tier || 'normal', cx, cy);
+  // the species' own drops (the gallery lists them); magic find helps the rare ones
+  const T = DROPS[e.kind]; if (!T) return;
+  const luck = 1 + st.mf / 250;
+  for (const slot of e.tier === 'elite' ? ['n', 'r', 'en', 'er'] : ['n', 'r']) {
+    const d = T[slot]; if (r() >= d.p * (slot === 'r' || slot === 'er' ? luck : 1)) continue;
+    (S.flags.drops ||= {})[e.kind + ':' + slot] = 1;
+    if (d.t === 'item') dropAt(S, cx, cy, { k: 'item', item: d.id });
+    else if (d.t === 'gem') dropAt(S, cx, cy, { k: 'gem', g: S.world === 'rev' ? d.g.replace(/\d/, (n) => Math.min(4, +n + 1)) : d.g });
+    else if (d.t === 'gear') dropAt(S, cx, cy, { k: 'gear', it: I.makeItem(d.b, d.q, Math.max(mlvl, I.BASES[d.b].q), r) });
+    else if (d.t === 'u') { const u = I.UNIQUES[d.id]; dropAt(S, cx, cy, { k: 'gear', it: I.makeItem(u.b, 'u', Math.max(mlvl, u.lvl), r, { id: d.id }) }); }
+    if (slot === 'r' || slot === 'er') { sfx(S, 'relic'); addText(S, cx, e.y - 14, L2('稀有掉落！', 'Rare drop!'), '#ffd84a'); }
+  }
 }
 function dropAt(S, x, y, d) {
   S.drops.push({ ...d, x: x - 5, y: y - 5, w: 10, h: 10, vx: (S.rnd() - 0.5) * 80, vy: -140 - S.rnd() * 60, t: d.k === 'heart' || d.k === 'gold' ? 9 : 9999 });

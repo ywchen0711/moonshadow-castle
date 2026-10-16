@@ -263,7 +263,7 @@ const UNI = [
   ['skullsplitter', '碎顱者', 'Skullsplitter', 'morningstar', 17, [['ed', 80, 110], ['crush', 20], ['stun', 15], ['kb', 1]]],
   ['numbwhip', '麻痺之鞭', 'Numbing Lash', 'chainwhip', 15, [['ed', 70, 90], ['ltng', 24], ['stun', 25]]],
   ['frostfang', '冰牙', 'Frostfang', 'pike', 22, [['ed', 90, 120], ['cold', 30], ['freeze', 15]]],
-  ['executioner2', '處刑人的審判', "Executioner's Justice", 'executioner', 32, [['ed', 140, 180], ['ds', 30], ['crush', 15], ['ignore', 1]]],
+  ['headsman', '斬首者', 'The Headsman', 'executioner', 32, [['ed', 140, 180], ['ds', 30], ['crush', 15], ['ignore', 1]]],
   ['vampfang', '吸血鬼之牙', "Vampire's Fang", 'tachi', 34, [['ed', 130, 160], ['ls', 12], ['ms', 6], ['bleed', 40]]],
   ['earthshaker', '撼地者', 'Earthshaker', 'thundermaul', 48, [['ed', 180, 220], ['crush', 30], ['stun', 25], ['kb', 1]]],
 ];

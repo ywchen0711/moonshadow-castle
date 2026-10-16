@@ -1,9 +1,10 @@
 // Moonshadow Castle: the loop, input (keyboard + touch), screens, dialogs, menus, shop, saving.
 import { AREAS, ITEMS, RELICS, SHOP, ROOM, ROOMS, BOSSES, ENEMIES, ROOM_GEAR } from './data.js?v=2';
-import * as G from './game.js?v=4';
-import * as I from './items.js?v=2';
-import { render, drawIcon, drawMap, drawSprite, VW, VH } from './render.js?v=4';
-import { t, L, STORY, getLang, setLang } from './i18n.js?v=4';
+import * as G from './game.js?v=5';
+import * as I from './items.js?v=3';
+import { DROPS } from './drops.js?v=1';
+import { render, drawIcon, drawMap, drawSprite, VW, VH } from './render.js?v=5';
+import { t, L, STORY, getLang, setLang } from './i18n.js?v=5';
 import * as A from './audio.js?v=2';
 G.setLangFn(getLang);
 
@@ -488,6 +489,23 @@ function dexEntry(list, key, head, detail) {
   r.onclick = (e) => { if (e.target.closest('.dxd')) return; dexOpen = dexOpen === key ? null : key; drawDex(); };
   list.appendChild(r);
 }
+// one drop line: what it is (a shadow until it has dropped for you) and how likely
+function dropDesc(D) {
+  if (D.t === 'item') return { icon: D.id, name: esc(L(ITEMS[D.id])), col: '#e8e8e8' };
+  if (D.t === 'gem') return { icon: 'gem:' + D.g, name: esc(I.gemName(D.g, getLang())), col: '#e8e8e8' };
+  if (D.t === 'gear') { const it = I.makeItem(D.b, D.q, I.BASES[D.b].q, fixedRng()); return { icon: it, name: `${t('q_' + D.q)}・${esc(L(I.BASES[D.b]))}`, col: I.qcol(it) }; }
+  const u = I.UNIQUES[D.id], it = I.makeItem(u.b, 'u', u.lvl, fixedRng(), { id: D.id }); return { icon: it, name: esc(L(u)), col: I.qcol(it) };
+}
+function dropLines(d, kind, slots, drops) {
+  for (const slot of slots) {
+    const D = DROPS[kind][slot], got = drops[kind + ':' + slot], x = dropDesc(D), row = el('div', 'drop');
+    row.appendChild(el('span', 'dl', t('drop_' + slot)));
+    const ic = iconCanvas(x.icon); if (!got) ic.classList.add('shadow'); row.appendChild(ic);
+    row.appendChild(el('span', 'dn', got ? `<span style="color:${x.col}">${x.name}</span>` : `<span class="unk">${t('dexUnknown')}</span>`));
+    row.appendChild(el('span', 'dp', Math.round(D.p * 100) + '%'));
+    d.appendChild(row);
+  }
+}
 function monsterLines(d, B, extra) {
   const res = Object.entries(B.res || {}).map(([k, v]) => `${L(ELEM[k] || { zh: k, en: k })} ${v > 0 ? '+' : ''}${v}%`).join(' · ');
   d.appendChild(el('div', 'cl', `HP ${B.hp} · ${t('atk')} ${B.atk} · ${t('def')} ${B.def || 0} · EXP ${B.exp}`));
@@ -515,11 +533,21 @@ function drawDex(target) {
   const list = el('div', 'dexlist'), count = (n, m) => body.appendChild(el('div', 'sect', t('dexFound').replace('{n}', n).replace('{m}', m)));
   if (dexTab === 'dexMon') {
     const ids = Object.keys(ENEMIES).filter((k) => !BOSSES[k]); count(ids.filter((k) => dex[k]).length, ids.length);
+    body.appendChild(el('div', 'sm', `${t('eliteForm')} ${ids.filter((k) => dex['elite:' + k]).length} / ${ids.length} · ${t('dropsFound')} ${Object.keys(flags.drops || {}).length} / ${ids.length * 4}`));
     ids.sort((a, b) => (ENEMIES[a].hp - ENEMIES[b].hp));
     for (const k of ids) {
-      const B = ENEMIES[k], h = el('div', 'dxh'); h.appendChild(spriteCanvas(k, !dex[k]));
-      h.appendChild(el('div', 'nm', `${dex[k] ? `${L(B)} <b class="ok">×${dex[k]}</b>` : UNKNOWN()}<div class="sm">${homesOf(k).join('、') || '—'}</div>`));
-      dexEntry(list, 'm:' + k, h, (d) => { if (!dex[k]) { d.appendChild(el('div', 'cl sm', t('dexNotYet'))); return; } monsterLines(d, B, `${L({ zh: '擊敗', en: 'Defeated' })} ${dex[k]}`); });
+      const B = ENEMIES[k], h = el('div', 'dxh'), ek = dex['elite:' + k], drops = flags.drops || {}; h.appendChild(spriteCanvas(k, !dex[k]));
+      h.appendChild(el('div', 'nm', `${dex[k] ? `${L(B)} <b class="ok">×${dex[k]}</b>` : UNKNOWN()}${ek ? ` <b class="elt">★${t('eliteForm')} ×${ek}</b>` : ''}<div class="sm">${homesOf(k).join('、') || '—'}</div>`));
+      dexEntry(list, 'm:' + k, h, (d) => {
+        if (!dex[k]) { d.appendChild(el('div', 'cl sm', t('dexNotYet'))); return; }
+        monsterLines(d, B, `${L({ zh: '擊敗', en: 'Defeated' })} ${dex[k]}`);
+        if (DROPS[k]) { d.appendChild(el('div', 'dsect', t('drops'))); dropLines(d, k, ['n', 'r'], drops); }
+        // the elite form: a red shadow until you have beaten one
+        const eb = el('div', 'eliteBox'), sp = spriteCanvas(k, !ek); sp.classList.add('elite'); eb.appendChild(sp);
+        eb.appendChild(el('div', 'nm', `<b class="elt">${ek ? esc(L({ zh: '強敵・' + B.zh, en: 'Elite ' + B.en })) + ` ×${ek}` : t('eliteForm') + ' ' + t('dexUnknown')}</b><div class="sm">${t('eliteHelp')}</div>`));
+        d.appendChild(eb);
+        if (DROPS[k]) dropLines(d, k, ['en', 'er'], drops);
+      });
     }
   }
   if (dexTab === 'dexBoss') {
