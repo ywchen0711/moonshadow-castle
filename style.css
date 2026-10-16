@@ -111,8 +111,10 @@ button { font: inherit; cursor: pointer; }
 .dxh { display: flex; align-items: center; gap: 10px; }
 .dxh .nm { flex: 1; }
 .dxh canvas { width: 24px; height: 24px; image-rendering: pixelated; flex: none; }
-.dxh canvas.spr { width: 56px; height: 56px; background: radial-gradient(circle at 50% 70%, #2a1e44, #120a20 70%); border-radius: 4px; }
-.dxh canvas.spr.dim { filter: brightness(.6) saturate(.25); opacity: .8; }
+.sprbox { width: 56px; height: 56px; flex: none; background: radial-gradient(circle at 50% 70%, #2a1e44, #120a20 70%); border-radius: 4px; display: block; }
+.dxh canvas.spr { width: 56px; height: 56px; display: block; }
+.dxh canvas.shadow { filter: brightness(0) drop-shadow(0 0 1.5px #9a7ac8); }
+.unk { color: #7a6a98; letter-spacing: .2em; }
 .dxd { margin: 8px 0 2px 4px; border-top: 1px solid #2a2040; padding-top: 6px; cursor: default; }
 .dxd .cl { font-size: 14px; line-height: 1.5; }
 .dx .sm, #warp .sm { font-size: 12px; color: #a898c0; }

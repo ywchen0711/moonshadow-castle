@@ -93,7 +93,10 @@ export const STAT = {
   exp: { zh: '+{v}% 經驗值', en: '+{v}% to Experience Gained' }, undead: { zh: '+{v}% 對不死生物傷害', en: '+{v}% Damage to Undead' }, dr: { zh: '受到傷害減少 {v}', en: 'Damage Reduced by {v}' },
   jump: { zh: '+{v} 空中跳躍次數', en: '+{v} Mid-air Jump' }, chain: { zh: '{v}% 機率在命中時施放連鎖閃電', en: '{v}% Chance to cast Chain Lightning on Hit' },
   reflect: { zh: '格擋時反彈投射物', en: 'Reflects projectiles when blocking' }, hok: { zh: '每次擊殺回復 {v} 生命', en: '+{v} Life after each Kill' }, heok: { zh: '每次擊殺 +{v} 愛心', en: '+{v} Hearts after each Kill' },
-  reach: { zh: '+{v} 攻擊距離', en: '+{v} Attack Reach' }, sock: { zh: '鑲孔 ({v})', en: 'Socketed ({v})' },
+  reach: { zh: '+{v} 攻擊距離', en: '+{v} Attack Reach' },
+  ds: { zh: '{v}% 致命打擊（雙倍傷害）', en: '{v}% Deadly Strike (double damage)' }, crush: { zh: '{v}% 粉碎打擊（削去目前生命 25%）', en: '{v}% Chance of Crushing Blow' },
+  bleed: { zh: '{v}% 撕裂傷口（流血 3 秒）', en: '{v}% Chance of Open Wounds' }, stun: { zh: '{v}% 麻痺敵人', en: '{v}% Chance to Paralyze' },
+  freeze: { zh: '{v}% 冰凍敵人', en: '{v}% Chance to Freeze' }, ignore: { zh: '無視目標防禦', en: "Ignore Target's Defense" }, kb: { zh: '強力擊退', en: 'Knockback' }, sock: { zh: '鑲孔 ({v})', en: 'Socketed ({v})' },
 };
 export const ELEM = ['fire', 'cold', 'ltng', 'pois', 'holy'];
 
@@ -125,6 +128,13 @@ const AFX = [
   ['hp', 'suf', 'hp', 'SHACGBRM', [[1, 5, 10, '胡狼', 'of the Jackal'], [8, 11, 20, '狐狸', 'of the Fox'], [16, 21, 30, '狼', 'of the Wolf'], [26, 31, 45, '猛虎', 'of the Tiger'], [38, 46, 65, '猛獁', 'of the Mammoth'], [50, 66, 90, '巨神', 'of the Colossus']]],
   ['ias', 'suf', 'ias', 'WG', [[4, 10, 15, '迅捷', 'of Readiness'], [14, 16, 25, '敏捷', 'of Alacrity'], [28, 26, 35, '疾速', 'of Swiftness'], [42, 36, 45, '神速', 'of Quickness']]],
   ['ls', 'suf', 'ls', 'WGRM', [[5, 3, 4, '水蛭', 'of the Leech'], [18, 5, 6, '蝗蟲', 'of the Locust'], [32, 7, 9, '七鰓鰻', 'of the Lamprey'], [46, 10, 12, '吸血鬼', 'of the Vampire']]],
+  ['ds', 'suf', 'ds', 'W', [[8, 10, 15, '之殺戮', 'of Slaying'], [22, 16, 25, '之處決', 'of Execution'], [38, 26, 35, '之斬首', 'of Beheading']]],
+  ['crush', 'suf', 'crush', 'WG', [[10, 5, 10, '之粉碎', 'of Crushing'], [24, 11, 20, '之碎骨', 'of Bonebreaking'], [40, 21, 30, '之毀滅', 'of Annihilation']]],
+  ['bleed', 'suf', 'bleed', 'W', [[4, 10, 20, '之撕裂', 'of Laceration'], [18, 21, 35, '之放血', 'of Bloodletting'], [34, 36, 50, '之血河', 'of Carnage']]],
+  ['stun', 'suf', 'stun', 'WG', [[6, 5, 10, '之麻木', 'of Numbing'], [20, 11, 18, '之麻痺', 'of Paralysis'], [36, 19, 25, '之石化', 'of Petrification']]],
+  ['freeze', 'suf', 'freeze', 'W', [[14, 5, 8, '之冰封', 'of Frost'], [30, 9, 14, '之冰獄', 'of Glaciers']]],
+  ['ignore', 'pre', 'ignore', 'W', [[16, 1, 1, '破甲', 'Piercing']]],
+  ['kb', 'pre', 'kb', 'W', [[1, 1, 1, '重擊', 'Forceful']]],
   ['ms', 'suf', 'ms', 'WRM', [[5, 2, 3, '蝙蝠', 'of the Bat'], [22, 4, 6, '幽魂', 'of the Wraith'], [40, 7, 9, '夜魔', 'of the Night']]],
   ['frw', 'suf', 'frw', 'B', [[3, 10, 15, '疾行', 'of Haste'], [16, 16, 25, '奔馳', 'of Speed'], [32, 26, 35, '疾風', 'of the Wind']]],
   ['crit', 'suf', 'crit', 'WGRM', [[6, 3, 5, '精準', 'of Precision'], [20, 6, 9, '屠戮', 'of Slaying'], [38, 10, 14, '死神', 'of Death']]],
@@ -247,6 +257,15 @@ const UNI = [
   ['grandcross', '大十字', 'Grand Cross', 'cross', 30, [['subd', 100], ['holy', 40], ['hearts', 20]]],
   ['chronos', '時之懷錶', 'Chronos', 'stopwatch', 40, [['subc', 2], ['frw', 15], ['int', 10]]],
   ['zeusorb', '宙斯之眼', 'Eye of Zeus', 'lightningorb', 46, [['subd', 120], ['ltng', 40], ['chain', 20]]],
+  // weapons built around the special effects
+  ['bloodthirst', '嗜血者', 'Bloodthirster', 'broadsword', 7, [['ed', 50, 70], ['ls', 8], ['bleed', 30]]],
+  ['viperfang', '毒蛇之牙', 'Viperfang', 'kris', 12, [['ed', 60, 80], ['pois', 40], ['ds', 20]]],
+  ['skullsplitter', '碎顱者', 'Skullsplitter', 'morningstar', 17, [['ed', 80, 110], ['crush', 20], ['stun', 15], ['kb', 1]]],
+  ['numbwhip', '麻痺之鞭', 'Numbing Lash', 'chainwhip', 15, [['ed', 70, 90], ['ltng', 24], ['stun', 25]]],
+  ['frostfang', '冰牙', 'Frostfang', 'pike', 22, [['ed', 90, 120], ['cold', 30], ['freeze', 15]]],
+  ['executioner2', '處刑人的審判', "Executioner's Justice", 'executioner', 32, [['ed', 140, 180], ['ds', 30], ['crush', 15], ['ignore', 1]]],
+  ['vampfang', '吸血鬼之牙', "Vampire's Fang", 'tachi', 34, [['ed', 130, 160], ['ls', 12], ['ms', 6], ['bleed', 40]]],
+  ['earthshaker', '撼地者', 'Earthshaker', 'thundermaul', 48, [['ed', 180, 220], ['crush', 30], ['stun', 25], ['kb', 1]]],
 ];
 export const UNIQUES = Object.fromEntries(UNI.map(([id, zh, en, b, lvl, mods]) => [id, { id, zh, en, b, lvl, mods }]));
 

@@ -1,8 +1,8 @@
 // Headless tests of the real game logic: physics against the reachability assumptions, gates, combat, items, saves.
 import { TILE, CW, CH, ROOMS, ITEMS, BOSSES, ENEMIES, AREAS } from '../js/data.js?v=2';
 import { T } from '../js/world.js?v=3';
-import * as G from '../js/game.js?v=3';
-import * as I from '../js/items.js?v=1';
+import * as G from '../js/game.js?v=4';
+import * as I from '../js/items.js?v=2';
 
 let fail = 0;
 const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fail++; };
@@ -182,6 +182,28 @@ for (const kind of Object.keys(BOSSES)) {
   ok(S.flags.found.longsword && S.flags.found['u:moonblade'], 'gallery: the base and the unique are marked found');
   const S2 = G.fromSave(JSON.parse(JSON.stringify(G.toSave(S))), 1);
   ok(S2.flags.dex.skeleton === 1 && S2.flags.found['u:moonblade'], 'gallery: progress survives save and load');
+}
+// special weapon effects, each forced to 100% on a sword with one swing at a sturdy skeleton
+{
+  const swing = (mods, setup) => {
+    const S = G.newState(31); place(S, 'r4', 8, 0); S.p.face = 1; S.p.lv = 30;
+    const w = I.makeItem('broadsword', 'm', 10, Math.random); delete w.s; w.a = mods; S.p.eq.weapon = w; G.stats(S.p);
+    const e = G.spawnEnemy(S, 'skeleton', S.p.x + 26, S.R.floorY(0) * TILE, 5); e.hp = e.mhp = 5000; e.st = 'idle'; if (setup) setup(e);
+    let hp1 = null; run(S, 0.3, (S2, i) => { if (i === 12) hp1 = e.hp; return { attack: i === 0 ? 1 : 0 }; });
+    return { S, e, hp1 };
+  };
+  const plain = swing([]), lost = 5000 - plain.hp1;
+  const ds = swing([['ds', 100]]); ok(5000 - ds.hp1 > lost * 1.6, `deadly strike doubles the damage (${lost} -> ${5000 - ds.hp1})`);
+  const cr = swing([['crush', 100]]); ok(5000 - cr.hp1 > 1000, `crushing blow takes a quarter of the life (${5000 - cr.hp1})`);
+  const bl = swing([['bleed', 100]]); ok(bl.e.hp < bl.hp1 && !bl.e.dead, 'open wounds keep bleeding after the hit');
+  const stn = swing([['stun', 100]]); ok(stn.e.stun > 0, 'paralysis stops the enemy');
+  const x0 = stn.e.x; run(stn.S, 0.5, () => ({})); ok(Math.abs(stn.e.x - x0) < 1, 'a paralyzed enemy does not move');
+  const fz = swing([['freeze', 100]]); ok(fz.e.frozen > 0, 'freezing hits freeze the enemy');
+  const ig = swing([['ignore', 1]], (e) => { e.def = 999; }), ig0 = swing([], (e) => { e.def = 999; });
+  ok(5000 - ig.hp1 > (5000 - ig0.hp1) * 5, `ignore defense goes through armour (${5000 - ig0.hp1} -> ${5000 - ig.hp1})`);
+  const ls = swing([['ls', 50]], null); ls.S.p.hp = 1; run(ls.S, 0.4, (S2, i) => ({ attack: i === 0 ? 1 : 0 })); ok(ls.S.p.hp > 1, 'life steal heals on hit');
+  const S = G.newState(32); S.p.items.antidote = 1; ok(!G.useItem(S, 'antidote') && S.p.items.antidote === 1, 'an antidote is not wasted when you are not poisoned');
+  ok(Object.values(I.UNIQUES).filter((u) => u.mods.some(([k]) => ['ds', 'crush', 'bleed', 'stun', 'freeze'].includes(k))).length >= 8, 'uniques carry the special effects');
 }
 console.log('explored after a short walk:', G.explored(G.newState(1)) + '%');
 console.log(fail ? `${fail} FAILED` : 'all passed');

@@ -2,7 +2,7 @@
 // No DOM here: main.js feeds input and reads S; tools/test.mjs drives it headless.
 import { TILE, CW, CH, AREAS, ROOM, ROOMS, RELICS, ENEMIES, BOSSES, ITEMS, SUB_SPOTS, LEVEL_EXP, ROOM_GEAR } from './data.js?v=2';
 import { T, buildRoom, roomAt } from './world.js?v=3';
-import * as I from './items.js?v=1';
+import * as I from './items.js?v=2';
 
 export const PH = { G: 900, JUMP: 335, DJUMP: 300, WALK: 112, FALL: 400, SLIDE: 230, DASH: 210, BAT: 125, MIST: 80, SWIM: 170, W: 10, H: 28, HC: 14 };
 const roomCache = {};
@@ -65,7 +65,7 @@ export function stats(p) {
     def: Math.round(con + def * (1 + (weapon ? 0 : 0)) + g('def')), block: p.eq.shield ? Math.min(75, blk + g('block')) : 0,
     res: { fire: res('fire'), cold: res('cold'), ltng: res('ltng'), pois: res('pois') },
     elem: { fire: g('fire'), cold: g('cold'), ltng: g('ltng'), pois: g('pois'), holy: g('holy') },
-    ls: g('ls'), ms: g('ms'), crit: 4 + lck * 0.4 + g('crit'), frw: Math.min(60, g('frw')), mf: g('mf') + lck, gf: g('gf'),
+    ls: g('ls'), ms: g('ms'), ds: Math.min(75, g('ds')), crush: Math.min(60, g('crush')), bleed: g('bleed'), stun: Math.min(60, g('stun')), freeze: Math.min(50, g('freeze')), ignore: g('ignore') > 0, kb: g('kb') > 0, crit: 4 + lck * 0.4 + g('crit'), frw: Math.min(60, g('frw')), mf: g('mf') + lck, gf: g('gf'),
     hpr: g('hpr'), mpr: g('mpr') + 1 + int * 0.05, thorns: g('thorns'), dr: g('dr'), exp: g('exp'), undead: g('undead') + (weapon && ['mace', 'hammer'].includes(I.BASES[p.eq.weapon.b].c) ? 50 : 0),
     subd: g('subd') + int, subc: g('subc'), jump: g('jump'), chain: g('chain'), reflect: g('reflect'), hok: g('hok'), heok: g('heok'), sets: setCount,
     mhp: Math.max(10, p.bhp + con * 2 + g('hp')), mmp: Math.max(5, p.bmp + int * 2 + g('mp')), mhearts: p.bhearts + g('hearts'),
@@ -101,6 +101,9 @@ export function fromSave(d0, seed = Date.now()) {
   S.flags = d.flags; S.flags.visited ||= {}; S.flags.seen ||= {};
   S.deaths = d.deaths || 0; S.playTime = d.playTime || 0; S.saveRoom = d.room || 'r1';
   stats(S.p); S.p.hp = S.p.mhp; S.p.mp = S.p.mmp;
+  // the gallery: everything you own counts as found (saves from before the gallery)
+  for (const it of [...Object.values(S.p.eq), ...S.p.bag, ...S.p.stash]) if (it) noteFound(S, it);
+  for (const g of Object.keys(S.p.gems || {})) (S.flags.found ||= {})['gem:' + g.replace(/\d/, '')] = 1;
   respawnAtSave(S);
   return S;
 }
@@ -345,6 +348,7 @@ export function useItem(S, id) {
   if (id === 'warprune') { if (S.boss && S.sealed) return false; p.items[id]--; if (!p.items[id]) delete p.items[id]; S.ev.push({ t: 'warp' }); respawnAtSave(S); sfx(S, 'save'); return true; }
   if (it.heal && p.hp >= p.mhp && !(it.mp && p.mp < p.mmp)) return false;
   if (!it.heal && it.mp && p.mp >= p.mmp) return false;
+  if (it.cure && !it.heal && !p.poisoned) return false;
   p.items[id]--; if (!p.items[id]) delete p.items[id];
   if (it.heal) { const h = Math.min(it.heal, p.mhp - p.hp); p.hp += h; addText(S, p.x + p.w / 2, p.y, '+' + h, '#7dff9a'); }
   if (it.mp) p.mp = Math.min(p.mmp, p.mp + it.mp);
@@ -469,26 +473,39 @@ export function weaponPacket(S, mult = 1) {
   for (const k of I.ELEM) if (st.elem[k]) pk[k] = st.elem[k] * (k === 'ltng' ? 0.1 + r() * 0.9 : k === 'pois' ? 1 : 0.5 + r() * 0.5) * (k === 'pois' ? 1 : mult);
   return pk;
 }
+// a short label over the enemy for a special effect (crush, paralyze...)
+function procText(S, e, txt, col) { addText(S, e.x + e.w / 2, e.y - 12, txt, col); }
 function hitEnemy(S, e, pkIn, fromX, kind) {
   if (e.dead || e.hp <= 0 || (e.boss && e.vis === 0) || e.st === 'under') return false;
   const p = S.p, st = stats(p), pk = typeof pkIn === 'number' ? { phys: pkIn } : pkIn;
   const crit = S.rnd() * 100 < st.crit;
   const res = e.res || {};
-  let phys = Math.max(1, (pk.phys || 0) - e.def) * (1 - (res.phys || 0));
+  const melee = kind === 'sword', proc = (v) => melee && v && S.rnd() * 100 < v;
+  let phys = Math.max(1, (pk.phys || 0) - (melee && st.ignore ? 0 : e.def)) * (1 - (res.phys || 0));
   if (e.undead && st.undead) phys *= 1 + st.undead / 100;
   let el = 0;
   for (const k of ['fire', 'cold', 'ltng', 'holy']) if (pk[k]) el += pk[k] * (1 - (res[k] || 0)) * (k === 'holy' && e.undead ? 1.5 : 1);
-  let d = Math.max(1, Math.round((phys + el) * (0.92 + S.rnd() * 0.16) * (crit ? 1.6 : 1)));
+  const deadly = proc(st.ds);
+  let d = Math.max(1, Math.round((phys + el) * (0.92 + S.rnd() * 0.16) * (crit ? 1.6 : 1) * (deadly ? 2 : 1)));
+  // crushing blow: a quarter of what is left (much less on bosses)
+  if (proc(st.crush)) { const c = Math.max(1, Math.round(Math.max(0, e.hp - d) * (e.boss ? 0.06 : 0.25))); d += c; procText(S, e, L2('粉碎！', 'Crush!'), '#ff6a3a'); burst(S, e.x + e.w / 2, e.y + e.h / 2, '#ffb070', 10, 90); }
+  if (deadly) procText(S, e, L2('致命！', 'Deadly!'), '#ff3a5a');
   e.hp -= d; e.flash = 0.12;
+  if (proc(st.bleed)) { e.bleed = { dps: Math.max(1, st.atk * 0.35 * (e.boss ? 0.5 : 1)), t: 3 }; procText(S, e, L2('撕裂', 'Bleeding'), '#e8304a'); }
+  if (!(e.stunCd > 0) && proc(st.stun)) { e.stun = e.boss ? 0.5 : 1.6; e.stunCd = e.boss ? 4 : 0; procText(S, e, L2('麻痺！', 'Paralyzed!'), '#ffe85a'); }
+  if (!(e.stunCd > 0) && proc(st.freeze)) { e.frozen = e.boss ? 0.4 : 1.2; e.stunCd = e.boss ? 4 : 0; procText(S, e, L2('冰凍！', 'Frozen!'), '#9ae0ff'); }
   const col = crit ? '#ffe070' : pk.fire > phys ? '#ff8a3a' : pk.cold > phys ? '#7ac8ff' : pk.ltng > phys ? '#ffe85a' : pk.holy > phys ? '#fff0b0' : '#ffffff';
   addText(S, e.x + e.w / 2, e.y - 2, d, col);
   if (pk.cold) e.slow = 2;
   if (pk.pois) e.pois = { dps: pk.pois * (1 - (res.pois || 0)) / 2, t: 2 };
   sfx(S, e.boss ? 'hitboss' : 'hit');
   // life and mana stolen from the physical part
-  if (kind === 'sword' || kind === 'chain') { if (st.ls) p.hp = Math.min(p.mhp, p.hp + phys * st.ls / 100); if (st.ms) p.mp = Math.min(p.mmp, p.mp + phys * st.ms / 100); }
+  if (kind === 'sword' || kind === 'chain') {
+    if (st.ls && p.hp < p.mhp) { const h = Math.min(p.mhp - p.hp, phys * st.ls / 100); p.hp += h; if (h >= 1) { for (let i = 0; i < 3; i++) S.fx.push({ k: 'spark', x: p.x + p.w / 2 + (S.rnd() - 0.5) * 8, y: p.y + 10, vx: (S.rnd() - 0.5) * 30, vy: -90 - S.rnd() * 40, t: 0.3, col: '#ff3a5a' }); } }
+    if (st.ms) p.mp = Math.min(p.mmp, p.mp + phys * st.ms / 100);
+  }
   if (kind === 'sword' && st.chain && S.rnd() * 100 < st.chain) chainLightning(S, e, st);
-  if (!e.boss && kind !== 'holy' && !e.heavy) { e.kb = 0.12; e.kbv = (e.x + e.w / 2 < fromX ? -1 : 1) * 90; }
+  if (!e.boss && kind !== 'holy' && (!e.heavy || (melee && st.kb)) && !(e.frozen > 0)) { const strong = melee && st.kb; e.kb = strong ? 0.22 : 0.12; e.kbv = (e.x + e.w / 2 < fromX ? -1 : 1) * (strong ? 210 : 90); }
   if (e.boss && !e.phase2 && e.kind === 'count' && e.hp <= e.mhp / 2) { e.phase2 = true; e.st = 'transform'; e.t = 2.2; e.vis = 1; S.ev.push({ t: 'dialog', id: 'count2' }); sfx(S, 'roar'); }
   if (e.hp <= 0) killEnemy(S, e);
   return true;
@@ -780,6 +797,10 @@ function updateEnemies(S, dt0) {
     if (e.flash > 0) e.flash -= dt0;
     // poison ticks, the stopwatch freezes time, cold slows, "Extra Fast" speeds up
     if (e.pois) { e.pois.t -= dt0; e.hp -= e.pois.dps * dt0; if (e.pois.t <= 0) e.pois = null; if (e.hp <= 0) { killEnemy(S, e); continue; } }
+    if (e.bleed) { e.bleed.t -= dt0; e.hp -= e.bleed.dps * dt0; if (e.bleed.t <= 0) e.bleed = null; if (e.hp <= 0) { killEnemy(S, e); continue; } }
+    if (e.stunCd > 0) e.stunCd -= dt0;
+    // paralyzed or frozen: no moving, no attacking, no touching (flyers hang in the air)
+    if (e.stun > 0 || e.frozen > 0) { if (e.stun > 0) e.stun -= dt0; if (e.frozen > 0) e.frozen -= dt0; e.vx = 0; if (!e.fly && !e.boss) ground(S, e, dt0); continue; }
     if (S.freeze > (e.boss ? 1.3 : 0)) continue;
     if (e.slow > 0) e.slow -= dt0;
     const dt = dt0 * (e.slow > 0 ? 0.5 : 1) * (e.spd || 1);
@@ -1200,7 +1221,7 @@ function updateDrops(S, dt, inp) {
     if (d.k === 'heart') { p.hearts = Math.min(p.mhearts, p.hearts + d.n); sfx(S, 'heart'); }
     if (d.k === 'gold') { p.gold += d.n; addText(S, d.x + 5, d.y - 4, d.n + 'G', '#ffd76a'); sfx(S, 'coin'); }
     if (d.k === 'item') { giveItem(S, d.item); S.ev.push({ t: 'got', item: d.item }); sfx(S, 'item'); }
-    if (d.k === 'gem') { p.gems[d.g] = (p.gems[d.g] || 0) + 1; S.ev.push({ t: 'gotgem', g: d.g }); sfx(S, 'item'); }
+    if (d.k === 'gem') { p.gems[d.g] = (p.gems[d.g] || 0) + 1; (S.flags.found ||= {})['gem:' + d.g.replace(/\d/, '')] = 1; S.ev.push({ t: 'gotgem', g: d.g }); sfx(S, 'item'); }
     if (d.k === 'sub') {   // a sub-weapon from a big candle: wield it now, the old one goes into the bag
       const it = I.makeItem(d.sub, 'n', S.mlvl || 1, S.rnd); delete it.s;
       if (p.eq.sub && !giveGear(S, p.eq.sub)) dropAt(S, p.x + p.w / 2, p.y, { k: 'gear', it: p.eq.sub });

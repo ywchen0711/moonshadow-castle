@@ -1,9 +1,9 @@
 // Moonshadow Castle: the loop, input (keyboard + touch), screens, dialogs, menus, shop, saving.
 import { AREAS, ITEMS, RELICS, SHOP, ROOM, ROOMS, BOSSES, ENEMIES, ROOM_GEAR } from './data.js?v=2';
-import * as G from './game.js?v=3';
-import * as I from './items.js?v=1';
-import { render, drawIcon, drawMap, drawSprite, VW, VH } from './render.js?v=3';
-import { t, L, STORY, getLang, setLang } from './i18n.js?v=3';
+import * as G from './game.js?v=4';
+import * as I from './items.js?v=2';
+import { render, drawIcon, drawMap, drawSprite, VW, VH } from './render.js?v=4';
+import { t, L, STORY, getLang, setLang } from './i18n.js?v=4';
 import * as A from './audio.js?v=2';
 G.setLangFn(getLang);
 
@@ -373,6 +373,14 @@ function itemRow(it, onClick, extra = '') {
   r.appendChild(el('div', 'nm', `${iname(it)} ${d ? `<b style="color:${d > 0 ? '#6aff6a' : '#ff6a6a'}">${d > 0 ? '▲' : '▼'}</b>` : ''}<div class="sm">${t('slot_' + (I.slotOf(it) === 'ring' ? 'ring1' : I.slotOf(it))).replace(/ 1$/, '')} · <span style="color:${req > p.lv ? '#ff5a5a' : 'inherit'}">Lv ${req}</span>${it.s ? ` · ◇${(it.g || []).length}/${it.s}` : ''}${extra}</div>`));
   r.onclick = onClick; return r;
 }
+function useFromMenu(id) {
+  const p = S.p, it = ITEMS[id];
+  if (!G.useItem(S, id)) {
+    A.sfx('no');
+    toast(t(id === 'warprune' ? 'noUseBoss' : it.heal && p.hp >= p.mhp ? 'hpFull' : it.mp && p.mp >= p.mmp ? 'mpFull' : it.cure ? 'notPoisoned' : 'cantUse'));
+  }
+  handleEvents(); if (mode === 'menu') drawMenu();
+}
 function drawMenu() {
   const tabs = $('#menu .tabs'); tabs.innerHTML = '';
   for (const k of TABS) { const b = el('button', tab === k ? 'on' : '', t(k === 'map' ? 'mapT' : k)); b.onclick = () => { tab = k; card = null; drawMenu(); A.sfx('menu'); }; tabs.appendChild(b); }
@@ -433,7 +441,8 @@ function drawMenu() {
       const it = ITEMS[id], r = el('div', 'it'); r.appendChild(iconCanvas(id));
       r.appendChild(el('div', 'nm', `${L(it)} ×${n}<div class="sm">${it.heal ? 'HP +' + (it.heal > 999 ? 'MAX' : it.heal) : ''} ${it.mp ? 'MP ' + (it.mp > 999 ? 'MAX' : '+' + it.mp) : ''}${it.cure ? '☠ ✕' : ''}${id === 'warprune' ? '↩ SAVE' : ''}</div>`));
       const b = el('button', 'usebtn', t('use'));
-      b.onclick = (ev) => { ev.stopPropagation(); if (!G.useItem(S, id)) A.sfx('no'); handleEvents(); if (mode === 'menu') drawMenu(); };
+      b.onclick = (ev) => { ev.stopPropagation(); useFromMenu(id); };
+      r.onclick = () => useFromMenu(id);
       r.appendChild(b); list.appendChild(r);
     }
     if (!list.children.length) list.appendChild(el('div', 'sm', t('noItems')));
@@ -467,11 +476,11 @@ function drawMenu() {
 const DEX_TABS = ['dexMon', 'dexBoss', 'dexGear', 'dexUnique', 'dexSet', 'dexMisc'];
 let dexTab = 'dexMon', dexOpen = null;
 const CLASS_ORDER = Object.keys(I.CLASS);
-function dexFlags() { if (S) return S.flags; const d = loadSave(); return d && d.flags ? d.flags : null; }
+function dexData() { if (S) return { f: S.flags, rel: S.p.relics }; const d = loadSave(); return { f: (d && d.flags) || {}, rel: (d && d.p && d.p.relics) || {} }; }
 // where a monster lives / a boss waits (normal castle only)
 const homesOf = (kind) => Object.entries(AREAS).filter(([, a]) => (a.enemies || []).includes(kind)).map(([, a]) => L(a));
 function bossHome(id) { const r = ROOMS.find((x) => x.boss === id && !x.id.startsWith('R:')); return r ? L(AREAS[r.area]) : t('reversed'); }
-function spriteCanvas(kind, dim) { const c = document.createElement('canvas'); c.width = c.height = 96; c.className = 'spr' + (dim ? ' dim' : ''); try { drawSprite(c, kind); } catch (e) { /* a sprite that needs live state: leave the frame empty */ } return c; }
+function spriteCanvas(kind, dim) { const c = document.createElement('canvas'); c.width = c.height = 96; c.className = 'spr' + (dim ? ' shadow' : ''); try { drawSprite(c, kind); } catch (e) { /* a sprite that needs live state: leave the frame empty */ } const box = document.createElement('span'); box.className = 'sprbox'; box.appendChild(c); return box; }
 const ELEM = { phys: { zh: '物理', en: 'Physical' }, fire: { zh: '火', en: 'Fire' }, cold: { zh: '冰', en: 'Cold' }, ltng: { zh: '電', en: 'Lightning' }, pois: { zh: '毒', en: 'Poison' }, holy: { zh: '聖', en: 'Holy' }, dark: { zh: '暗', en: 'Dark' } };
 function dexEntry(list, key, head, detail) {
   const r = el('div', 'dx' + (dexOpen === key ? ' open' : '')); r.appendChild(head);
@@ -488,15 +497,18 @@ function monsterLines(d, B, extra) {
   if (tags.length) d.appendChild(el('div', 'cl', tags.join(' · ')));
   if (extra) d.appendChild(el('div', 'cl', extra));
 }
+const shadowIcon = (id, found) => { const c = iconCanvas(id); if (!found) c.classList.add('shadow'); return c; };
+const UNKNOWN = () => `<span class="unk">${t('dexUnknown')}</span>`;
 function gearHead(it, sub, found) {
-  const h = el('div', 'dxh'); h.appendChild(iconCanvas(it));
-  h.appendChild(el('div', 'nm', `${iname(it)} ${found ? '<b class="ok">✓</b>' : ''}<div class="sm">${sub}</div>`)); return h;
+  const h = el('div', 'dxh'); h.appendChild(shadowIcon(it, found));
+  h.appendChild(el('div', 'nm', `${found ? iname(it) + ' <b class="ok">✓</b>' : UNKNOWN()}<div class="sm">${sub}</div>`)); return h;
 }
-function gearDetail(d, it, note) { for (const [txt, col] of I.describe(it, getLang())) d.appendChild(el('div', 'cl', `<span style="color:${col}">${esc(txt)}</span>`)); if (note) d.appendChild(el('div', 'cl sm', note)); }
+function gearDetail(d, it, note, found = true) {
+  if (!found) { d.appendChild(el('div', 'cl sm', t('dexNotFound'))); return; } for (const [txt, col] of I.describe(it, getLang())) d.appendChild(el('div', 'cl', `<span style="color:${col}">${esc(txt)}</span>`)); if (note) d.appendChild(el('div', 'cl sm', note)); }
 const fixedRng = () => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); };
 function drawDex(target) {
   if (target) drawDex.target = target;
-  const box = drawDex.target, flags = dexFlags() || {}, dex = flags.dex || {}, found = flags.found || {};
+  const box = drawDex.target, dd = dexData(), flags = dd.f, dex = flags.dex || {}, found = flags.found || {};
   const tabs = box.querySelector('.dtabs'), body = box.querySelector('.dbody');
   tabs.innerHTML = ''; body.innerHTML = '';
   for (const k of DEX_TABS) { const b = el('button', dexTab === k ? 'on' : '', t(k)); b.onclick = (e) => { e.stopPropagation(); dexTab = k; dexOpen = null; drawDex(); A.sfx('menu'); }; tabs.appendChild(b); }
@@ -506,16 +518,16 @@ function drawDex(target) {
     ids.sort((a, b) => (ENEMIES[a].hp - ENEMIES[b].hp));
     for (const k of ids) {
       const B = ENEMIES[k], h = el('div', 'dxh'); h.appendChild(spriteCanvas(k, !dex[k]));
-      h.appendChild(el('div', 'nm', `${L(B)} ${dex[k] ? `<b class="ok">×${dex[k]}</b>` : ''}<div class="sm">${homesOf(k).join('、') || '—'}</div>`));
-      dexEntry(list, 'm:' + k, h, (d) => monsterLines(d, B, dex[k] ? `${L({ zh: '擊敗', en: 'Defeated' })} ${dex[k]}` : t('dexNotYet')));
+      h.appendChild(el('div', 'nm', `${dex[k] ? `${L(B)} <b class="ok">×${dex[k]}</b>` : UNKNOWN()}<div class="sm">${homesOf(k).join('、') || '—'}</div>`));
+      dexEntry(list, 'm:' + k, h, (d) => { if (!dex[k]) { d.appendChild(el('div', 'cl sm', t('dexNotYet'))); return; } monsterLines(d, B, `${L({ zh: '擊敗', en: 'Defeated' })} ${dex[k]}`); });
     }
   }
   if (dexTab === 'dexBoss') {
     const ids = Object.keys(BOSSES), beaten = flags.boss || {}; count(ids.filter((k) => beaten[k]).length, ids.length);
     for (const k of ids) {
       const B = BOSSES[k], h = el('div', 'dxh'); h.appendChild(spriteCanvas(k, !beaten[k]));
-      h.appendChild(el('div', 'nm', `${L(B)} ${beaten[k] ? '<b class="ok">✓</b>' : ''}<div class="sm">${bossHome(k)}</div>`));
-      dexEntry(list, 'b:' + k, h, (d) => { const story = STORY['boss_' + k]; monsterLines(d, { ...B, hp: B.hp || '?', atk: B.atk || '?', exp: B.exp || '?' }); if (story) d.appendChild(el('div', 'cl sm', esc(L(story[story.length - 1].t || story[story.length - 1])))); });
+      h.appendChild(el('div', 'nm', `${beaten[k] ? L(B) + ' <b class="ok">✓</b>' : UNKNOWN()}<div class="sm">${bossHome(k)}</div>`));
+      dexEntry(list, 'b:' + k, h, (d) => { if (!beaten[k]) { d.appendChild(el('div', 'cl sm', t('dexNotYet'))); return; } const story = STORY['boss_' + k]; monsterLines(d, { ...B, hp: B.hp || '?', atk: B.atk || '?', exp: B.exp || '?' }); if (story) d.appendChild(el('div', 'cl sm', esc(L(story[story.length - 1].t || story[story.length - 1])))); });
     }
   }
   if (dexTab === 'dexGear') {
@@ -527,14 +539,14 @@ function drawDex(target) {
       if (b.c !== cls) { cls = b.c; list.appendChild(el('div', 'sect', `${t('slot_' + (slot === 'ring' ? 'ring1' : slot)).replace(/ 1$/, '')} · ${esc(b.c)}`)); }
       const it = I.makeItem(b.id, 'n', b.q, fixedRng()), main = I.itemBase(it);
       const sub = `Lv ${b.q}${main.min != null ? ` · ${t('dmg')} ${main.min}-${main.max}` : main.def != null ? ` · ${t('def')} ${main.def}` : ''}${b.s ? ` · ◇${b.s}` : ''}`;
-      dexEntry(list, 'g:' + b.id, gearHead(it, sub, found[b.id]), (d) => gearDetail(d, it));
+      dexEntry(list, 'g:' + b.id, gearHead(it, sub, found[b.id]), (d) => gearDetail(d, it, null, found[b.id]));
     }
   }
   if (dexTab === 'dexUnique') {
     const us = Object.values(I.UNIQUES); count(us.filter((u) => found['u:' + u.id]).length, us.length);
     for (const u of us.slice().sort((a, b) => a.lvl - b.lvl)) {
       const it = I.makeItem(u.b, 'u', u.lvl, fixedRng(), { id: u.id });
-      dexEntry(list, 'u:' + u.id, gearHead(it, `${esc(L(I.BASES[u.b]))} · Lv ${I.reqLevel(it)}`, found['u:' + u.id]), (d) => gearDetail(d, it, t('dexRolls')));
+      dexEntry(list, 'u:' + u.id, gearHead(it, `${esc(L(I.BASES[u.b]))} · Lv ${I.reqLevel(it)}`, found['u:' + u.id]), (d) => gearDetail(d, it, t('dexRolls'), found['u:' + u.id]));
     }
   }
   if (dexTab === 'dexSet') {
@@ -543,19 +555,20 @@ function drawDex(target) {
       list.appendChild(el('div', 'sect', `<span style="color:#4ad84a">${esc(L(st))}</span> · Lv ${st.lvl}`));
       for (const [id] of st.pieces) {
         const it = I.makeItem(I.SET_ITEMS[id].b, 'set', I.SET_ITEMS[id].lvl, fixedRng(), { id });
-        dexEntry(list, 's:' + id, gearHead(it, esc(L(I.BASES[it.b])), found['set:' + id]), (d) => { gearDetail(d, it); for (const [txt, col] of I.setLines(sid, st.pieces.length, getLang())) d.appendChild(el('div', 'cl', `<span style="color:${col}">${esc(txt)}</span>`)); });
+        dexEntry(list, 's:' + id, gearHead(it, esc(L(I.BASES[it.b])), found['set:' + id]), (d) => { gearDetail(d, it, null, found['set:' + id]); for (const [txt, col] of I.setLines(sid, st.pieces.length, getLang())) d.appendChild(el('div', 'cl', `<span style="color:${col}">${esc(txt)}</span>`)); });
       }
     }
   }
   if (dexTab === 'dexMisc') {
     list.appendChild(el('div', 'sect', t('relics')));
-    for (const [id, r] of Object.entries(RELICS)) { const h = el('div', 'dxh'); h.appendChild(iconCanvas(id)); h.appendChild(el('div', 'nm', `${L(r)}<div class="sm">${L(r.d)}</div>`)); dexEntry(list, 'r:' + id, h, () => {}); }
+    for (const [id, r] of Object.entries(RELICS)) { const has = dd.rel[id], h = el('div', 'dxh'); h.appendChild(shadowIcon(id, has)); h.appendChild(el('div', 'nm', has ? `${L(r)}<div class="sm">${L(r.d)}</div>` : `${UNKNOWN()}<div class="sm">${t('dexNotFound')}</div>`)); dexEntry(list, 'r:' + id, h, () => {}); }
     list.appendChild(el('div', 'sect', t('itemsT')));
     for (const [id, it] of Object.entries(ITEMS)) { if (it.kind !== 'use') continue; const h = el('div', 'dxh'); h.appendChild(iconCanvas(id)); h.appendChild(el('div', 'nm', `${L(it)}<div class="sm">${it.heal ? 'HP +' + (it.heal > 999 ? 'MAX' : it.heal) : ''} ${it.mp ? 'MP ' + (it.mp > 999 ? 'MAX' : '+' + it.mp) : ''}${it.cure ? ' ☠✕' : ''}${it.price ? ` · ${it.price} G` : ''}</div>`)); dexEntry(list, 'i:' + id, h, () => {}); }
     list.appendChild(el('div', 'sect', t('gems')));
     for (const g of Object.keys(I.GEMS)) for (let k = 1; k <= 4; k++) {
-      const gid = g + k, h = el('div', 'dxh'); h.appendChild(iconCanvas('gem:' + gid));
+      const gid = g + k, h = el('div', 'dxh'), has = found['gem:' + g]; h.appendChild(shadowIcon('gem:' + gid, has));
       const fx = (L2) => I.gemMods(gid, L2).map(([s2, v]) => I.STAT[s2][getLang() === 'zh' ? 'zh' : 'en'].replace('{v}', v).replace('{a}', Math.round(v / 2))).join(', ');
+      if (!has) { h.appendChild(el('div', 'nm', `${UNKNOWN()}<div class="sm">${t('dexNotFound')}</div>`)); dexEntry(list, 'j:' + gid, h, () => {}); continue; }
       h.appendChild(el('div', 'nm', `${esc(I.gemName(gid, getLang()))}<div class="sm">${L({ zh: '武器', en: 'Weapon' })}: ${esc(fx('W'))} · ${L({ zh: '防具', en: 'Armour' })}: ${esc(fx('A'))}</div>`));
       dexEntry(list, 'j:' + gid, h, () => {});
     }

@@ -2,7 +2,7 @@
 // walked through both ways, and every place to stand checked for "standing here puts you in the next room".
 import { TILE, CW, CH, ROOMS, ROOM, AREAS, BOSSES } from '../js/data.js?v=2';
 import { T, EXITS } from '../js/world.js?v=3';
-import * as G from '../js/game.js?v=3';
+import * as G from '../js/game.js?v=4';
 
 const DT = 1 / 60, bad = [], good = [];
 const blank = () => ({ left: 0, right: 0, up: 0, down: 0, jump: 0, attack: 0, sub: 0, dash: 0, bat: 0, mist: 0, pressed: {} });

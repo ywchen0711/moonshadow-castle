@@ -17,15 +17,16 @@ Every hundred years the moon turns black above Moonshadow Castle, and Count Vorl
 - **Diablo II style loot:**
   - **100 base items in 20 classes.** Daggers, swords, rapiers, greatswords, axes, maces, hammers, spears, katanas, whips, shields, helms, armour, cloaks, gloves, boots, amulets, rings and **12 sub-weapons**. The sub-weapons are throwing knives, axes, holy water, the cross, the Bible, a boomerang, a javelin, fire bombs, shuriken, a stopwatch, a lightning orb and a crystal.
   - **Six qualities:** normal, superior, magic (blue), rare (yellow), set (green) and unique (gold). Item level, required level, and prefix/suffix affixes in tiers. Elemental damage, resistances, life/mana steal, crit, block, magic find, faster run, thorns and more.
-  - **56 uniques** and **8 sets (34 pieces)** with 2-piece, 3-piece and full-set bonuses.
+  - **64 uniques** and **8 sets (34 pieces)** with 2-piece, 3-piece and full-set bonuses.
   - **Sockets and gems.** 7 gems × 4 grades, with different effects in weapons and armour. Combine 3 gems into the next grade at the shop.
+  - **Special effects on weapons:** Deadly Strike (double damage), Crushing Blow (a quarter of the enemy's life), Open Wounds (bleeding), Paralysis, Freezing, Ignore Defense, Knockback, poison and life/mana steal. They come as affixes and on 8 uniques built around them, such as Skullsplitter, Bloodthirster, Viperfang and Earthshaker. Enemies show their state: paralysis stars, an ice block, dripping blood, green poison.
   - **Champion and unique monsters** with random modifiers and better drops.
 - **RPG growth:** levels to 99, and 3 stat points per level for STR / CON / INT / LCK. Equip 11 slots on a paper doll: weapon, shield, helm, armour, cloak, gloves, boots, amulet, two rings and a sub-weapon. You get a 60-slot bag, a 120-slot stash in save rooms, and an item card that compares each item with what you wear.
 - **Shops:** buy potions and rolled gear, sell, **gamble** for mystery items, and combine gems.
 - **Gallery (圖鑑):** open it from the title screen or the pause menu.
   - Every monster (39) and boss (21), with its real sprite, stats, element and resistances, and where it lives.
   - Every base item (100), unique (56) and set piece (34), plus relics, potions and all 28 gems.
-  - Things you have defeated or found are marked and counted.
+  - Things you have defeated or found are marked and counted. Anything not met or found yet is shown only as a shadow (？？？).
 - **39 monster types and 21 bosses**, each boss with its own pattern. Examples: the Chimera, Spider Queen, Doppelganger, Treant, Minotaur, Scylla, Frost Wyrm, Mimic King, Kraken, Reaper and the Moon Sovereign.
 - **Save rooms** fully heal you and save your progress, which syncs to the cloud through the Pixel Playground account. There is a full story with dialogue, an ending and a true ending.
 - **Look and sound:** procedural pixel art, a parallax moonlit sky, and a synthesized soundtrack for each area.
