@@ -4,7 +4,7 @@ import * as G from './game.js?v=6';
 import * as I from './items.js?v=3';
 import { DROPS } from './drops.js?v=1';
 import { render, drawIcon, drawMap, drawSprite, VW, VH } from './render.js?v=5';
-import { t, L, STORY, getLang, setLang } from './i18n.js?v=5';
+import { t, L, STORY, getLang, setLang } from './i18n.js?v=6';
 import * as A from './audio.js?v=2';
 G.setLangFn(getLang);
 
@@ -668,12 +668,21 @@ $('#warp .closeBtn').onclick = () => closeOverlays();
 $('#bRetry').onclick = () => { const d = loadSave(); S.deaths++; if (d) { d.deaths = (d.deaths || 0) + 1; S = G.fromSave(d); } else S = G.newState(); begin(); };
 $('#bTitle').onclick = () => showTitle();
 $('#bEndTitle').onclick = () => showTitle();
+// after an ending: back into the castle where you won (boss gone), to explore, collect, and find what is left
+$('#bEndGo').onclick = () => {
+  const d = loadSave(); if (!d) return showTitle();
+  S = G.fromSave(d);
+  const room = d.endRoom && ROOM[d.endRoom] ? d.endRoom : null;
+  if (room) { G.loadRoom(S, room, null); S.p.x = Math.floor(S.R.W / 2) * 16; S.p.y = S.R.floorY(0) * 16 - S.p.h; S.p.vx = S.p.vy = 0; S.p.inv = 1; }
+  begin();
+  toast(t(S.p.relics.moonEye || S.world === 'rev' ? 'postgameRev' : 'postgame'), true);
+};
 function showEnding() {
   mode = 'ending'; $('#touch').classList.add('hidden');
   $('#ending').classList.remove('hidden'); $('#ending .big').textContent = trueWin ? t('trueEnd') : t('theEnd');
   $('#ending .stats').innerHTML = `${t('clearTime')}: ${fmtTime(S.playTime)}<br>Lv ${S.p.lv} · ${t('explored')} ${G.explored(S)}%<br>${t('kills')}: ${S.p.kills} · ${t('deaths')}: ${S.deaths}`;
   A.music('ending');
-  try { const d = G.toSave(S); d.cleared = 1; localStorage.setItem(SAVE, JSON.stringify(d)); } catch (e) { /* ignore */ } if (cloud) cloud.touch('moonshadow-castle', SAVE);
+  try { const d = G.toSave(S); d.cleared = trueWin ? 2 : Math.max(1, d.cleared || 0); d.endRoom = S.roomId; localStorage.setItem(SAVE, JSON.stringify(d)); } catch (e) { /* ignore */ } if (cloud) cloud.touch('moonshadow-castle', SAVE);
 }
 
 // ------------------------------------------------------------------ loop

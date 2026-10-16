@@ -42,7 +42,9 @@ const S = {
   pause: { zh: '暫停', en: 'Paused' }, resume: { zh: '回到遊戲', en: 'Resume' }, sound: { zh: '音效 / 音樂', en: 'Sound / music' }, on: { zh: '開', en: 'On' }, off: { zh: '關', en: 'Off' },
   language: { zh: '語言', en: 'Language' }, quit: { zh: '存檔並回標題', en: 'Save & quit to title' },
   mapHelp: { zh: '紅色：存檔室　黃色：商店　紫色：魔王　● 你的位置', en: 'Red: save room · Yellow: shop · Purple: boss · ● You' },
-  theEnd: { zh: '完', en: 'THE END' }, clearTime: { zh: '通關時間', en: 'Clear time' }, deaths: { zh: '倒下次數', en: 'Falls' },
+  theEnd: { zh: '完', en: 'THE END' }, keepPlaying: { zh: '繼續冒險', en: 'Keep exploring' },
+  postgame: { zh: '城堡還藏著許多秘密……找到「月之瞳」就能看見它真正的模樣。', en: 'The castle still hides many secrets... find the Eye of the Moon to see its true face.' },
+  postgameRev: { zh: '月影城仍在等著你：繼續收集裝備、挑戰強敵吧！', en: 'The castle still awaits: keep collecting and hunting elites!' }, clearTime: { zh: '通關時間', en: 'Clear time' }, deaths: { zh: '倒下次數', en: 'Falls' },
   tapToContinue: { zh: '點一下繼續', en: 'Tap to continue' },
   dash: { zh: '退', en: 'Dash' }, batBtn: { zh: '蝠', en: 'Bat' }, jumpBtn: { zh: '跳', en: 'Jump' }, atkBtn: { zh: '攻', en: 'Atk' }, subBtn: { zh: '副', en: 'Sub' }, mistBtn: { zh: '霧', en: 'Mist' },
   // loot, equipment and the expansion

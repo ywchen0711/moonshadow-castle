@@ -3,7 +3,7 @@
 import { TILE, CW, CH, AREAS, ITEMS, BOSSES, RELICS, ROOMS, ENEMIES, ROOM_GEAR } from './data.js?v=2';
 import { T } from './world.js?v=3';
 import { stats, expToNext, getRoom, subCost } from './game.js?v=6';
-import { L, t, getLang } from './i18n.js?v=5';
+import { L, t, getLang } from './i18n.js?v=6';
 import * as I from './items.js?v=3';
 
 export const VW = CW * TILE, VH = CH * TILE;
