@@ -1,6 +1,6 @@
 // All drawing: procedural gothic pixel art for rooms, the hero, enemies, bosses, effects and the HUD.
 // The canvas is scaled so that one unit = one game pixel; positions are rounded to whole pixels.
-import { TILE, CW, CH, AREAS, ITEMS, BOSSES, RELICS, ROOMS, ENEMIES } from './data.js?v=2';
+import { TILE, CW, CH, AREAS, ITEMS, BOSSES, RELICS, ROOMS, ENEMIES, ROOM_GEAR } from './data.js?v=2';
 import { T } from './world.js?v=3';
 import { stats, expToNext, getRoom, subCost } from './game.js?v=3';
 import { L, t, getLang } from './i18n.js?v=3';
@@ -351,11 +351,14 @@ export function drawSprite(cv, kind, time = 0.6) {
   ctx.save(); ctx.translate(cv.width / 2, cv.height - 6); ctx.scale(k, k);
   try { drawEnemy(S, e); } finally { ctx.restore(); ctx = keep; }
 }
+const SUB_ART = new Set(Object.values(I.BASES).filter((b) => b.k).map((b) => b.k));
 export function drawIcon(c, id, x, y, s = 1) {
   const prev = ctx; ctx = c; ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
   if (typeof id === 'object') { itemIcon(id); ctx.restore(); ctx = prev; return; }
   if (id.startsWith('gem:')) { gemIcon(id.slice(4)); ctx.restore(); ctx = prev; return; }
-  if (I.BASES[id]) { if (I.BASES[id].k) subIcon(I.BASES[id].k); ctx.restore(); ctx = prev; return; }
+  if (I.BASES[id]) { itemIcon({ b: id, q: 'n' }); ctx.restore(); ctx = prev; return; }
+  if (ROOM_GEAR[id]) { itemIcon({ b: ROOM_GEAR[id][0], q: ROOM_GEAR[id][1] }); ctx.restore(); ctx = prev; return; }
+  if (SUB_ART.has(id)) { subIcon(id); ctx.restore(); ctx = prev; return; }
   const it = ITEMS[id], sub = null, rel = RELICS[id];
   if (it?.kind === 'weapon') { const col = id === 'moonblade' ? '#9ac8ff' : '#e0e4ee'; ctx.save(); ctx.rotate(-0.78); R(-1, -7, 2, 11, col); R(-1, -7, 1, 11, '#ffffff'); R(-3, 4, 6, 1, '#d8b060'); R(-1, 5, 2, 3, '#6a4020'); ctx.restore(); }
   else if (it?.kind === 'armor') { const col = { tunic: '#6a5a8a', leather: '#8a5a30', chainmail: '#a0a4b4', silverplate: '#e0e4f0' }[id]; R(-5, -5, 10, 9, col); R(-7, -5, 3, 4, col); R(4, -5, 3, 4, col); R(-2, -5, 4, 2, '#1a1a1a'); R(-5, 3, 10, 1, '#d8b060'); }
@@ -436,12 +439,12 @@ function drawShots(S) {
   for (const s of S.shots) {
     const x = s.x + s.w / 2, y = s.y + s.h / 2;
     if (s.k === 'dagger') { R(s.x, y - 1, 10, 2, '#e8ecf4'); R(s.vx > 0 ? s.x : s.x + 9, y - 2, 2, 4, '#d8b060'); }
-    if (s.k === 'axe') { ctx.save(); ctx.translate(x, y); ctx.rotate(s.t * 14 * Math.sign(s.vx || 1)); drawIcon(ctx, 'axe', 0, 0, 1.2); ctx.restore(); }
+    if (s.k === 'axe') { ctx.save(); ctx.translate(x, y); ctx.rotate(s.t * 14 * Math.sign(s.vx || 1)); ctx.scale(1.2, 1.2); subIcon('axe'); ctx.restore(); }
     if (s.k === 'holy') {
-      if (!s.burn) drawIcon(ctx, 'holy', x, y, 0.9);
+      if (!s.burn) { ctx.save(); ctx.translate(x, y); ctx.scale(0.9, 0.9); subIcon('holy'); ctx.restore(); }
       else for (let i = 0; i < 6; i++) { const fx = s.x + 3 + i * 5, h = 8 + Math.sin(S.time * 20 + i * 2) * 4; ctx.fillStyle = i % 2 ? '#5ab0ff' : '#c8e8ff'; ctx.beginPath(); ctx.moveTo(fx - 3, s.y + s.h); ctx.lineTo(fx, s.y + s.h - h - 6); ctx.lineTo(fx + 3, s.y + s.h); ctx.fill(); }
     }
-    if (s.k === 'cross') { ctx.save(); ctx.translate(x, y); ctx.rotate(s.t * 16); drawIcon(ctx, 'cross', 0, 0, 1.1); ctx.restore(); }
+    if (s.k === 'cross') { ctx.save(); ctx.translate(x, y); ctx.rotate(s.t * 16); ctx.scale(1.1, 1.1); subIcon(s.boom ? 'boomerang' : 'cross'); ctx.restore(); }
     if (s.k === 'fire') { ctx.fillStyle = '#b060ff'; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill(); R(x - 1, y - 1, 2, 2, '#ffffff'); }
     if (s.k === 'bible') { ctx.save(); ctx.translate(x, y); ctx.rotate(s.t * 6); subIcon('bible'); ctx.restore(); }
     if (s.k === 'javelin') { R(s.x, y - 1, 18, 2, '#a87a40'); ctx.fillStyle = '#e0e4ee'; ctx.beginPath(); const tip = s.vx > 0 ? s.x + 22 : s.x - 2; ctx.moveTo(tip, y); ctx.lineTo(s.vx > 0 ? s.x + 16 : s.x + 4, y - 3); ctx.lineTo(s.vx > 0 ? s.x + 16 : s.x + 4, y + 3); ctx.fill(); }

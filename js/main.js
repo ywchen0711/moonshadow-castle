@@ -1,8 +1,8 @@
 // Moonshadow Castle: the loop, input (keyboard + touch), screens, dialogs, menus, shop, saving.
-import { AREAS, ITEMS, RELICS, SHOP, ROOM, ROOMS, BOSSES, ENEMIES } from './data.js?v=2';
+import { AREAS, ITEMS, RELICS, SHOP, ROOM, ROOMS, BOSSES, ENEMIES, ROOM_GEAR } from './data.js?v=2';
 import * as G from './game.js?v=3';
 import * as I from './items.js?v=1';
-import { render, drawIcon, drawMap, drawSprite, VW, VH } from './render.js?v=2';
+import { render, drawIcon, drawMap, drawSprite, VW, VH } from './render.js?v=3';
 import { t, L, STORY, getLang, setLang } from './i18n.js?v=3';
 import * as A from './audio.js?v=2';
 G.setLangFn(getLang);
@@ -53,6 +53,7 @@ addEventListener('keydown', (e) => {
     if (e.code === 'Enter' || e.code === 'Escape') { openMenu('status'); e.preventDefault(); return; }
     if (e.code === 'KeyM' || e.code === 'Tab') { openMenu('map'); e.preventDefault(); return; }
   } else if (mode === 'menu' || mode === 'shop' || mode === 'warp') {
+    if (e.code === 'Escape' && (card || shopCard || dexOpen)) { uiBack(); e.preventDefault(); return; }
     if (e.code === 'Escape' || e.code === 'Enter' || (e.code === 'KeyM' && mode === 'menu')) { closeOverlays(); e.preventDefault(); return; }
   }
   const k = KEYMAP[e.code]; if (k) { held[k] = 1; e.preventDefault(); }
@@ -111,7 +112,7 @@ function uiRoot() {
   for (const id of ['#confirm', '#how', '#dex', '#warp', '#shop', '#menu', '#over', '#ending', '#title']) { const e = $(id); if (!e.classList.contains('hidden')) return e; }
   return null;
 }
-function uiItems() { const r = uiRoot(); return r ? [...r.querySelectorAll('button:not([disabled]), .it')].filter((e) => e.offsetParent !== null && !e.closest('#touch')) : []; }
+function uiItems() { const r = uiRoot(); return r ? [...r.querySelectorAll('button:not([disabled]), .it, .dx')].filter((e) => e.offsetParent !== null && !e.closest('#touch')) : []; }
 function uiMark() {
   document.querySelectorAll('.gpf').forEach((e) => e.classList.remove('gpf'));
   if (!gp.active) return;
@@ -119,10 +120,60 @@ function uiMark() {
   gp.focus = Math.max(0, Math.min(items.length - 1, gp.focus));
   const e = items[gp.focus]; e.classList.add('gpf');
 }
-function uiMove(d) { const items = uiItems(); if (!items.length) return; gp.focus = (gp.focus + d + items.length) % items.length; uiMark(); items[gp.focus].scrollIntoView({ block: 'nearest' }); A.sfx('menu'); }
+function uiMove(dx, dy) {
+  const items = uiItems(); if (!items.length) return;
+  const cur = items[Math.max(0, Math.min(items.length - 1, gp.focus))], a = cur.getBoundingClientRect();
+  const ax = a.left + a.width / 2, ay = a.top + a.height / 2;
+  let best = -1, bestScore = Infinity;
+  items.forEach((e, i) => {
+    if (e === cur) return;
+    const b = e.getBoundingClientRect(), bx = b.left + b.width / 2, by = b.top + b.height / 2;
+    if (dy) {
+      // the next row: must start below (above) the current item; prefer the same column
+      const gap = dy > 0 ? b.top - (a.bottom - 4) : (a.top + 4) - b.bottom; if (gap < 0) return;
+      const overlap = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const score = gap + (overlap > 0 ? 0 : Math.abs(bx - ax) * 1.5 + 40);
+      if (score < bestScore) { bestScore = score; best = i; }
+    } else {
+      // the same row first: must be to the right (left) and overlap vertically
+      const gap = dx > 0 ? b.left - (a.right - 4) : (a.left + 4) - b.right; if (gap < 0) return;
+      const overlap = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      if (overlap <= 0) return;
+      const score = gap + Math.abs(by - ay) * 2;
+      if (score < bestScore) { bestScore = score; best = i; }
+    }
+  });
+  if (best < 0) { if (!cur.classList.contains('gpf')) { uiMark(); } return; }
+  gp.focus = best; uiMark(); items[best].scrollIntoView({ block: 'nearest' }); A.sfx('menu');
+}
+const backTo = [];   // where you were before opening a card, to come back to it
+function uiPress() {
+  const e = uiItems()[gp.focus]; if (!e) return;
+  A.unlock(); const r = e.getBoundingClientRect(), hadCard = !!uiRoot()?.querySelector('.card');
+  e.click();
+  const root = uiRoot(), cardNow = root && root.querySelector('.card');
+  // a card just opened: highlight its first action; otherwise stay where you were
+  if (cardNow && !hadCard) { backTo.push(gp.focus); const first = cardNow.querySelector('button:not([disabled])'); gp.focus = Math.max(0, uiItems().indexOf(first)); uiMark(); }
+  else if (!cardNow && hadCard && backTo.length) focusIndex(backTo.pop());
+  else keepFocusNear(r);
+}
+function focusIndex(i) { const items = uiItems(); if (!items.length) return; gp.focus = Math.max(0, Math.min(items.length - 1, i)); uiMark(); items[gp.focus].scrollIntoView({ block: 'nearest' }); }
+// after a click redraws the panel, stay on whatever is now where you were
+function keepFocusNear(r) {
+  const items = uiItems(); if (!items.length) return;
+  let best = 0, bd = Infinity; items.forEach((e, i) => { const b = e.getBoundingClientRect(), d = Math.abs(b.top - r.top) * 2 + Math.abs(b.left - r.left); if (d < bd) { bd = d; best = i; } });
+  gp.focus = best; uiMark();
+}
 function uiBack() {
+  const hadCard = !!uiRoot()?.querySelector('.card');
+  uiBack0();
+  if (hadCard && !uiRoot()?.querySelector('.card') && backTo.length) focusIndex(backTo.pop());
+}
+function uiBack0() {
   if (!$('#confirm').classList.contains('hidden')) { $('#confirm').classList.add('hidden'); gp.focus = 0; return; }
   if (!$('#how').classList.contains('hidden')) { $('#how').classList.add('hidden'); gp.focus = 0; return; }
+  if (!$('#dex').classList.contains('hidden')) { if (dexOpen) { dexOpen = null; drawDex(); return; } $('#dex').classList.add('hidden'); gp.focus = 0; return; }
+  if (mode === 'menu' && tab === 'dexT' && dexOpen) { dexOpen = null; drawDex(); return; }
   if (mode === 'menu' && card) { card = null; drawMenu(); return; }
   if (mode === 'shop' && shopCard) { shopCard = null; drawShop(); return; }
   if (mode === 'menu' || mode === 'shop' || mode === 'warp') closeOverlays();
@@ -140,11 +191,12 @@ function pollPad(dt) {
     gp.held = {};
     if (mode === 'dialog') { if (edge('jump') || edge('attack') || edge('dash')) advanceDialog(); }
     else {
-      const dir = s.up || s.left ? -1 : s.down || s.right ? 1 : 0;
-      const was = p.up || p.left ? -1 : p.down || p.right ? 1 : 0;
-      if (dir && dir !== was) { uiMove(dir); gp.repT = 0.4; }
-      else if (dir) { gp.repT -= dt; if (gp.repT <= 0) { uiMove(dir); gp.repT = 0.11; } }
-      if (edge('jump')) { const e = uiItems()[gp.focus]; if (e) { A.unlock(); e.click(); gp.focus = Math.min(gp.focus, uiItems().length - 1); } }
+      const dir = s.up ? 'u' : s.down ? 'd' : s.left ? 'l' : s.right ? 'r' : '';
+      const was = p.up ? 'u' : p.down ? 'd' : p.left ? 'l' : p.right ? 'r' : '';
+      const go = (d) => uiMove(d === 'l' ? -1 : d === 'r' ? 1 : 0, d === 'u' ? -1 : d === 'd' ? 1 : 0);
+      if (dir && dir !== was) { go(dir); gp.repT = 0.4; }
+      else if (dir) { gp.repT -= dt; if (gp.repT <= 0) { go(dir); gp.repT = 0.11; } }
+      if (edge('jump')) uiPress();
       if (edge('dash')) uiBack();
       if (edge('menu') && mode === 'menu') closeOverlays();
       if (edge('map') && mode === 'menu') closeOverlays();
@@ -153,7 +205,13 @@ function pollPad(dt) {
   }
   gp.prev = s;
 }
-addEventListener('keydown', () => { gp.active = false; uiMark(); }, true);
+const NAV = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+addEventListener('keydown', (e) => {
+  if (mode === 'play' || mode === 'dialog' || !uiRoot()) { gp.active = false; uiMark(); return; }
+  if (NAV[e.code]) { e.preventDefault(); e.stopImmediatePropagation(); if (!gp.active) { gp.active = true; uiMark(); A.sfx('menu'); return; } uiMove(...NAV[e.code]); return; }
+  if (['KeyZ', 'Space', 'KeyJ'].includes(e.code) && !e.repeat) { e.preventDefault(); e.stopImmediatePropagation(); if (!gp.active) { gp.active = true; uiMark(); return; } uiPress(); return; }
+  if (['KeyX', 'Backspace', 'KeyK'].includes(e.code) && !e.repeat) { e.preventDefault(); e.stopImmediatePropagation(); uiBack(); uiMark(); return; }
+}, true);
 addEventListener('pointerdown', () => { gp.active = false; uiMark(); }, true);
 
 // ------------------------------------------------------------------ title
@@ -601,5 +659,5 @@ requestAnimationFrame(frame);
 showTitle();
 // a demo room behind the title screen
 S = G.newState(1);
-window.__I = I; window.__warpIds = () => ROOMS.filter((r) => r.special === 'warp' && !r.id.startsWith('R:')).map((r) => r.id);
+window.__I = I; window.__drawIcon = drawIcon; window.__ITEMS = ITEMS; window.__RELICS = RELICS; window.__ROOM_GEAR = ROOM_GEAR; window.__warpIds = () => ROOMS.filter((r) => r.special === 'warp' && !r.id.startsWith('R:')).map((r) => r.id);
 window.__msc = { get S() { return S; }, G, tick(n) { for (let i = 0; i < n; i++) { pollPad(1 / 60); if (mode === 'play') { G.update(S, 1 / 60, readInput()); handleEvents(); } } }, step(n, inp = {}) { for (let i = 0; i < n; i++) { const x = { ...inp, pressed: { ...(inp.pressed || {}) } }; if (i) x.pressed = {}; G.update(S, 1 / 60, x); handleEvents(); } }, begin, openMenu, openShop, openWarp, closeOverlays, startNew, drawMenu, get mode() { return mode; }, set tabName(v) { tab = v; } };

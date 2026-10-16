@@ -44,7 +44,7 @@ Every hundred years the moon turns black above Moonshadow Castle, and Count Vorl
 | Drop through a ledge / slide | ↓ + jump | ↓ + A | |
 | Menu / map | Enter / M | Start / Back | ☰ / 🗺 |
 
-With a gamepad, the menus, shop and title screen use the d-pad to move the highlight, A to confirm and B to go back. Taking damage makes the controller rumble (Chrome / Edge).
+In the menus, shop, gallery and title screen, the arrow keys or d-pad move the highlight to the nearest item in that direction. For example, ↓ goes from the equipment slots straight into the bag list. Z / Space / gamepad A chooses, and X / Backspace / gamepad B goes back. Taking damage makes the controller rumble (Chrome / Edge).
 
 ## Development
 
