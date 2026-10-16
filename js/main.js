@@ -1,6 +1,6 @@
 // Moonshadow Castle: the loop, input (keyboard + touch), screens, dialogs, menus, shop, saving.
 import { AREAS, ITEMS, RELICS, SHOP, ROOM, ROOMS, BOSSES, ENEMIES, ROOM_GEAR } from './data.js?v=2';
-import * as G from './game.js?v=5';
+import * as G from './game.js?v=6';
 import * as I from './items.js?v=3';
 import { DROPS } from './drops.js?v=1';
 import { render, drawIcon, drawMap, drawSprite, VW, VH } from './render.js?v=5';
@@ -701,4 +701,4 @@ showTitle();
 // a demo room behind the title screen
 S = G.newState(1);
 window.__I = I; window.__drawIcon = drawIcon; window.__ITEMS = ITEMS; window.__RELICS = RELICS; window.__ROOM_GEAR = ROOM_GEAR; window.__warpIds = () => ROOMS.filter((r) => r.special === 'warp' && !r.id.startsWith('R:')).map((r) => r.id);
-window.__msc = { get S() { return S; }, G, tick(n) { for (let i = 0; i < n; i++) { pollPad(1 / 60); if (mode === 'play') { G.update(S, 1 / 60, readInput()); handleEvents(); } } }, step(n, inp = {}) { for (let i = 0; i < n; i++) { const x = { ...inp, pressed: { ...(inp.pressed || {}) } }; if (i) x.pressed = {}; G.update(S, 1 / 60, x); handleEvents(); } }, begin, openMenu, openShop, openWarp, closeOverlays, startNew, drawMenu, get mode() { return mode; }, set tabName(v) { tab = v; } };
+window.__msc = { get S() { return S; }, G, I, save() { writeSave(); toast(t('saved')); }, tick(n) { for (let i = 0; i < n; i++) { pollPad(1 / 60); if (mode === 'play') { G.update(S, 1 / 60, readInput()); handleEvents(); } } }, step(n, inp = {}) { for (let i = 0; i < n; i++) { const x = { ...inp, pressed: { ...(inp.pressed || {}) } }; if (i) x.pressed = {}; G.update(S, 1 / 60, x); handleEvents(); } }, begin, openMenu, openShop, openWarp, closeOverlays, startNew, drawMenu, get mode() { return mode; }, set tabName(v) { tab = v; } };

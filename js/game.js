@@ -12,7 +12,7 @@ export const getRoom = (id) => (roomCache[id] ||= buildRoom(id));
 function mkRng(seed) { let s = seed >>> 0 || 7; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
 
 // ------------------------------------------------------------------ new game / save
-export const BAG_MAX = 60, STASH_MAX = 120;
+export const BAG_MAX = 300, STASH_MAX = 120;
 const emptyEq = () => Object.fromEntries(I.SLOTS.map((s) => [s, null]));
 export function newPlayer() {
   const eq = emptyEq();

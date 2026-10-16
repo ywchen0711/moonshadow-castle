@@ -1,7 +1,7 @@
 // Headless tests of the real game logic: physics against the reachability assumptions, gates, combat, items, saves.
 import { TILE, CW, CH, ROOMS, ITEMS, BOSSES, ENEMIES, AREAS } from '../js/data.js?v=2';
 import { T } from '../js/world.js?v=3';
-import * as G from '../js/game.js?v=5';
+import * as G from '../js/game.js?v=6';
 import * as I from '../js/items.js?v=3';
 import { DROPS } from '../js/drops.js?v=1';
 

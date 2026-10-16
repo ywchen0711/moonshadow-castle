@@ -2,7 +2,7 @@
 // The canvas is scaled so that one unit = one game pixel; positions are rounded to whole pixels.
 import { TILE, CW, CH, AREAS, ITEMS, BOSSES, RELICS, ROOMS, ENEMIES, ROOM_GEAR } from './data.js?v=2';
 import { T } from './world.js?v=3';
-import { stats, expToNext, getRoom, subCost } from './game.js?v=5';
+import { stats, expToNext, getRoom, subCost } from './game.js?v=6';
 import { L, t, getLang } from './i18n.js?v=5';
 import * as I from './items.js?v=3';
 
