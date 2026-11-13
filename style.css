@@ -40,7 +40,7 @@ button { font: inherit; cursor: pointer; }
 .toast canvas { width: 24px; height: 24px; image-rendering: pixelated; }
 .toast.big { font-size: 18px; padding: 10px 18px; border-width: 2px; }
 @keyframes tin { from { transform: translateY(-10px); opacity: 0; } }
-#areaName { position: absolute; top: 28%; left: 50%; transform: translateX(-50%); font-size: clamp(20px, 4vmin, 34px); color: #f0e8ff; text-shadow: 0 0 12px #8a3ac8, 0 2px 0 #000; font-family: "Times New Roman", "Microsoft JhengHei", serif; letter-spacing: .15em; pointer-events: none; z-index: 14; animation: area 2.6s ease forwards; }
+#areaName { position: absolute; top: 28%; left: 50%; transform: translateX(-50%); font-size: clamp(20px, 4vmin, 34px); color: #f0e8ff; text-shadow: 0 0 12px #8a3ac8, 0 2px 0 #000; font-family: "Times New Roman", "Microsoft JhengHei", serif; letter-spacing: .15em; pointer-events: none; z-index: 9; animation: area 2.6s ease forwards; }
 @keyframes area { 0% { opacity: 0; } 15%, 75% { opacity: 1; } 100% { opacity: 0; } }
 
 #menu .tabs, #shop .tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; align-items: center; }
