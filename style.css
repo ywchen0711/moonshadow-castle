@@ -131,3 +131,5 @@ button { font: inherit; cursor: pointer; }
 .sprbox.elite canvas:not(.shadow) { filter: drop-shadow(0 0 3px #ff2a2a); }
 .sprbox.elite canvas.shadow { filter: brightness(0) drop-shadow(0 0 2px #ff3a3a); }
 .elt { color: #ff6a5a; font-weight: normal; font-size: 13px; }
+
+.sttag { font-style: normal; font-size: .8em; color: #fff; padding: 0 .3em; border-radius: 3px; background: #6a3aa8; } .sttag.psn { background: #3a8a2a; }

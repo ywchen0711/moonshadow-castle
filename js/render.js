@@ -231,6 +231,7 @@ function drawStatus(S, e) {
   if (e.frozen > 0) { R(e.x - 2, e.y - 2, e.w + 4, e.h + 4, 'rgba(150,215,255,0.28)'); ctx.strokeStyle = 'rgba(210,245,255,0.9)'; ctx.lineWidth = 1; ctx.strokeRect(Math.round(e.x - 2) + 0.5, Math.round(e.y - 2) + 0.5, e.w + 3, e.h + 3); R(e.x, e.y, 2, 4, 'rgba(255,255,255,0.8)'); }
   if (e.stun > 0) for (let i = 0; i < 3; i++) { const a = S.time * 7 + i * 2.09, x = cx + Math.cos(a) * 9, y = e.y - 6 + Math.sin(a) * 2.5; R(x - 1, y, 3, 1, '#ffe85a'); R(x, y - 1, 1, 3, '#ffe85a'); R(x, y, 1, 1, '#ffffff'); }
   if (e.bleed) for (let i = 0; i < 2; i++) { const y = e.y + 4 + ((S.time * 38 + i * 11) % Math.max(6, e.h - 4)); R(cx - 3 + i * 6, y, 1, 2, '#d0102a'); }
+  if (e.slow > 0 && !(e.frozen > 0)) for (let i = 0; i < 2; i++) { const a = S.time * 2 + i * 3.14, x = cx + Math.cos(a) * 7, y = e.y + e.h * 0.4 + Math.sin(a * 1.3) * 3; R(x - 1, y, 3, 1, '#9ad8ff'); R(x, y - 1, 1, 3, '#9ad8ff'); }
   if (e.pois) for (let i = 0; i < 2; i++) { const k = (S.time * 1.6 + i * 0.5) % 1; R(cx - 2 + i * 5 + Math.sin(S.time * 6 + i) * 1.5, e.y - 2 - k * 10, 2, 2, `rgba(122,255,90,${1 - k})`); }
 }
 function drawEnemy(S, e) {
@@ -695,6 +696,13 @@ function hud(S) {
   heart(36, 23, 0.9, '#ff3a5a'); ctx.fillStyle = '#fff'; ctx.fillText(String(p.hearts), 42, 26);
   if (p.eq.sub) { R(60, 19, 12, 10, 'rgba(0,0,0,0.5)'); drawIcon(ctx, I.BASES[p.eq.sub.b].k ? p.eq.sub.b : p.eq.sub, 66, 24, 0.8); }
   ctx.fillStyle = '#d8b060'; ctx.fillText('Lv ' + p.lv + (p.points ? ' ✦' : ''), 76, 26);
+  // what the hero is under right now: poison, a stopped clock, bat or mist form
+  const zh = getLang() === 'zh', tags = [];
+  if (p.poisoned > 0) tags.push([(zh ? '毒 ' : 'PSN ') + Math.ceil(p.poisoned), '#3a8a2a']);
+  if (S.freeze > 0) tags.push([(zh ? '時停 ' : 'STOP ') + Math.ceil(S.freeze), '#3a6aa8']);
+  if (p.bat) tags.push([zh ? '蝙蝠' : 'BAT', '#6a3aa8']);
+  if (p.mist) tags.push([zh ? '霧化' : 'MIST', '#5a7088']);
+  stTags(tags, 4, 31, 'left');
   if (S.world === 'rev') { ctx.textAlign = 'right'; ctx.fillStyle = '#c8a0ff'; ctx.fillText(getLang() === 'zh' ? '逆轉城' : 'REVERSED', VW - 6, 21); ctx.textAlign = 'left'; }
   ctx.textAlign = 'right'; ctx.fillStyle = '#ffd76a'; ctx.fillText(p.gold + ' G', VW - 6, 11);
   // boss bar
@@ -703,6 +711,22 @@ function hud(S) {
     const name = L(BOSSES[b.kind]);
     bar(VW / 2 - 100, VH - 12, 200, 5, b.hp / b.mhp, '#b040e0', '#1a0a20');
     ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText(name, VW / 2 + 1, VH - 15); ctx.fillStyle = '#f0d8ff'; ctx.fillText(name, VW / 2, VH - 16);
+    stTags(enemyTags(b, zh), VW / 2 + 102, VH - 23, 'left');
+  }
+}
+// the statuses on an enemy, short and coloured
+function enemyTags(e, zh) {
+  const t = [];
+  if (e.pois) t.push([zh ? '毒' : 'PSN', '#3a8a2a']); if (e.bleed) t.push([zh ? '流血' : 'BLD', '#a8182a']);
+  if (e.stun > 0) t.push([zh ? '麻' : 'PAR', '#a8901a']); if (e.frozen > 0) t.push([zh ? '凍' : 'FRZ', '#3a8ab8']); else if (e.slow > 0) t.push([zh ? '慢' : 'SLW', '#3a6aa8']);
+  return t;
+}
+// small coloured tags in a row from (x, y)
+function stTags(tags, x, y, align) {
+  ctx.font = 'bold 7px "Trebuchet MS", sans-serif'; ctx.textAlign = 'left';
+  for (const [text, col] of tags) {
+    const w = Math.ceil(ctx.measureText(text).width) + 4;
+    R(x, y, w, 9, '#000000'); R(x + 1, y + 1, w - 2, 7, col); ctx.fillStyle = '#ffffff'; ctx.fillText(text, x + 2, y + 7); x += w + 2;
   }
 }
 

@@ -3,7 +3,7 @@ import { AREAS, ITEMS, RELICS, SHOP, ROOM, ROOMS, BOSSES, ENEMIES, ROOM_GEAR } f
 import * as G from './game.js?v=6';
 import * as I from './items.js?v=3';
 import { DROPS } from './drops.js?v=1';
-import { render, drawIcon, drawMap, drawSprite, VW, VH } from './render.js?v=5';
+import { render, drawIcon, drawMap, drawSprite, VW, VH } from './render.js?v=6';
 import { t, L, STORY, getLang, setLang } from './i18n.js?v=6';
 import * as A from './audio.js?v=2';
 G.setLangFn(getLang);
@@ -390,7 +390,7 @@ function drawMenu() {
   if (card) { body.appendChild(card.gems ? gemPicker(card.it) : itemCard(card.it, card.where)); return; }
   if (tab === 'status') {
     const g = el('div', 'stat');
-    const rows = [['lv', p.lv], ['hp', `${Math.ceil(p.hp)} / ${p.mhp}`], ['mp', `${Math.floor(p.mp)} / ${p.mmp}`], ['hearts', `${p.hearts} / ${p.mhearts}`], ['dmg', `${st.dmin}-${st.dmax}`], ['def', st.def],
+    const rows = [['lv', p.lv], ['hp', `${Math.ceil(p.hp)} / ${p.mhp}${p.poisoned > 0 ? ` <i class="sttag psn">${getLang() === 'zh' ? '毒' : 'PSN'}</i>` : ''}${p.bat ? ` <i class="sttag form">${getLang() === 'zh' ? '蝙蝠' : 'BAT'}</i>` : ''}${p.mist ? ` <i class="sttag form">${getLang() === 'zh' ? '霧化' : 'MIST'}</i>` : ''}`], ['mp', `${Math.floor(p.mp)} / ${p.mmp}`], ['hearts', `${p.hearts} / ${p.mhearts}`], ['dmg', `${st.dmin}-${st.dmax}`], ['def', st.def],
       ['block', st.block + '%'], ['crit', Math.round(st.crit) + '%'], ['mf', '+' + Math.round(st.mf) + '%'], ['exp', p.exp], ['next', p.lv >= G.LEVEL_CAP ? '—' : G.expToNext(p) - p.exp], ['gold', p.gold], ['kills', p.kills], ['explored', G.explored(S) + '%'], ['time', fmtTime(S.playTime)]];
     for (const [k, v] of rows) g.appendChild(el('div', '', `<span>${t(k)}</span><b>${v}</b>`));
     body.appendChild(g);
